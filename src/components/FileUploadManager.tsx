@@ -169,8 +169,8 @@ export default function FileUploadManager({
           accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt"
         />
         
-        <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
-          <label htmlFor="file-upload" className="cursor-pointer">
+        <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+          <label htmlFor="file-upload" className="cursor-pointer flex items-center">
             <Upload className="h-4 w-4 mr-2" />
             Dosya Seç
           </label>

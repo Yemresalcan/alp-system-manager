@@ -114,20 +114,15 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
       console.log('Tekniksyen stats güncellendi:', newStats)
       setStats(newStats)
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Tekniksyen stats genel hatası:', error)
-      console.error('Hata detayları:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      })
-      handleToast('error', 'Veri Yükleme Hatası', `İstatistikler yüklenemedi: ${error.message || 'Bilinmeyen hata'}`)
+      const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata'
+      handleToast('error', 'Veri Yükleme Hatası', `İstatistikler yüklenemedi: ${errorMessage}`)
     } finally {
       setIsLoadingStats(false)
       console.log('Tekniksyen stats yükleme tamamlandı')
     }
-  }, [user.id])
+  }, [user.id, handleToast])
 
   useEffect(() => {
     fetchTechnicianStats()
@@ -159,9 +154,10 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
 
       handleToast('success', 'Profil Güncellendi', 'Profil bilgileriniz başarıyla güncellendi')
       setRefreshTrigger(prev => prev + 1)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Profil güncelleme hatası:', error)
-      handleToast('error', 'Güncelleme Hatası', error.message)
+      const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata'
+      handleToast('error', 'Güncelleme Hatası', errorMessage)
     } finally {
       setIsUpdatingProfile(false)
     }

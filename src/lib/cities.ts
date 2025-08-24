@@ -1,6 +1,32 @@
 // Şehir renk kodlaması sistemi
 
-export const CITIES = {
+export interface CityInfo {
+  name: string;
+  color: string;
+  bgColor: string;
+  textColor: string;
+  borderColor: string;
+  badgeColor: string;
+  cardBorder: string;
+  hoverColor: string;
+  icon: string;
+}
+
+export interface SelectOption {
+  value: string;
+  label: string;
+  name: string;
+  color: string;
+}
+
+export interface CityData {
+  city: string;
+  [key: string]: unknown;
+}
+
+export type CityKey = 'antalya' | 'bursa' | 'eskisehir';
+
+export const CITIES: Record<CityKey, CityInfo> = {
   antalya: {
     name: 'Antalya',
     color: 'blue',
@@ -36,13 +62,11 @@ export const CITIES = {
   }
 } as const
 
-export type CityKey = keyof typeof CITIES
-
 export const getCityInfo = (cityKey: string) => {
   return CITIES[cityKey as CityKey] || CITIES.antalya // Default to Antalya
 }
 
-export const getCityOptions = () => {
+export const getCityOptions = (cities: CityData[]): SelectOption[] => {
   return Object.entries(CITIES).map(([key, value]) => ({
     value: key,
     label: `${value.icon} ${value.name}`,
@@ -52,7 +76,7 @@ export const getCityOptions = () => {
 }
 
 // Şehir istatistikleri için
-export const getCityStats = (technicians: any[]) => {
+export const getCityStats = (technicians: Array<{ city?: string; [key: string]: unknown }>) => {
   const stats = {
     antalya: 0,
     bursa: 0,

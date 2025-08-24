@@ -40,9 +40,10 @@ export default function LoginForm() {
 
       if (error) throw error
       console.log('Login başarılı!')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error)
-      setError(error.message)
+      const errorMessage = error instanceof Error ? error.message : 'Giriş başarısız'
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -180,10 +181,10 @@ export default function LoginForm() {
 
               <div className="mb-8">
                 <h1 className={`text-2xl font-bold mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  <span className="text-blue-500">Alp Sistem</span>'e Giriş Yapın
+                  <span className="text-blue-500">Alp Sistem</span>&apos;e Giriş Yapın
                 </h1>
                 <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Alp Sistem'e hoş geldiniz, lütfen giriş bilgilerinizi aşağıya girin.
+                  Alp Sistem&apos;e hoş geldiniz, lütfen giriş bilgilerinizi aşağıya girin.
                 </p>
               </div>
               

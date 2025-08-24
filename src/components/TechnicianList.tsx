@@ -174,7 +174,7 @@ function TechnicianList({ onAddTechnician, refreshTrigger, onToast }: Technician
     : technicians.filter(tech => tech.city === cityFilter)
 
   // Şehir istatistikleri
-  const cityStats = getCityStats(technicians)
+  const cityStats = getCityStats(technicians as any[])
 
   if (loading) {
     return (

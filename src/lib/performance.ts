@@ -3,17 +3,17 @@
 import { useCallback, useMemo } from 'react'
 
 // Debounce hook - arama gibi işlemler için
-export function useDebounce<T extends (...args: any[]) => void>(
+export function useDebounce<T extends (...args: unknown[]) => void>(
   callback: T,
   delay: number
-): T {
+): (...args: Parameters<T>) => void {
   const debouncedCallback = useCallback(
     (...args: Parameters<T>) => {
       const timeoutId = setTimeout(() => callback(...args), delay)
       return () => clearTimeout(timeoutId)
     },
     [callback, delay]
-  ) as T
+  )
 
   return debouncedCallback
 }

@@ -129,20 +129,15 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
       console.log('Dashboard stats güncellendi:', newStats)
       setStats(newStats)
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Dashboard stats genel hatası:', error)
-      console.error('Hata detayları:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      })
-      handleToast('error', 'Veri Yükleme Hatası', `İstatistikler yüklenemedi: ${error.message || 'Bilinmeyen hata'}`)
+      const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata'
+      handleToast('error', 'Veri Yükleme Hatası', `İstatistikler yüklenemedi: ${errorMessage}`)
     } finally {
       setIsLoadingStats(false)
       console.log('Dashboard stats yükleme tamamlandı')
     }
-  }, [])
+  }, [handleToast])
 
   useEffect(() => {
     fetchDashboardStats()
