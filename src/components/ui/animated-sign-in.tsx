@@ -1,16 +1,12 @@
-'use client'
+import React, { useState, useEffect } from 'react';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
 
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { Eye, EyeOff } from 'lucide-react'
-
-export default function LoginForm() {
+const AnimatedSignIn: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const [mounted, setMounted] = useState(false);
   
   // Animation states
@@ -25,28 +21,16 @@ export default function LoginForm() {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log('Login butonu tıklandı:', email)
-    setIsLoading(true)
-    setError('')
-
-    try {
-      console.log('Supabase giriş denemesi...')
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (error) throw error
-      console.log('Login başarılı!')
-    } catch (error: any) {
-      console.error('Login error:', error)
-      setError(error.message)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  const handleSignIn = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      console.log('Giriş denemesi:', { email, password });
+      setIsLoading(false);
+    }, 1500);
+  };
 
   // Only show the component once mounted to avoid hydration issues
   if (!mounted) return null;
@@ -187,7 +171,7 @@ export default function LoginForm() {
                 </p>
               </div>
               
-              <form onSubmit={handleLogin} className="space-y-6">
+              <form onSubmit={handleSignIn} className="space-y-6">
                 <div className="space-y-1">
                   <label 
                     htmlFor="email" 
@@ -265,13 +249,6 @@ export default function LoginForm() {
                     Şifremi unuttum?
                   </a>
                 </div>
-
-                {/* Error */}
-                {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                    {error}
-                  </div>
-                )}
                 
                 <button
                   type="submit"
@@ -346,4 +323,6 @@ export default function LoginForm() {
       </div>
     </div>
   );
-}
+};
+
+export { AnimatedSignIn };
