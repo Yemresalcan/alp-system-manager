@@ -43,8 +43,35 @@ export default function Home() {
 
     initAuth()
 
+    // Auth state değişikliklerini dinle
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email)
+      
+      if (!mounted) return
+
+      if (session?.user) {
+        setUser(session.user)
+        try {
+          const userProfile = await getUserProfile(session.user.id)
+          if (mounted) {
+            setProfile(userProfile)
+          }
+        } catch (error) {
+          console.error('Profile fetch error:', error)
+        }
+      } else {
+        setUser(null)
+        setProfile(null)
+      }
+
+      if (mounted) {
+        setLoading(false)
+      }
+    })
+
     return () => {
       mounted = false
+      subscription.unsubscribe()
     }
   }, [])
 

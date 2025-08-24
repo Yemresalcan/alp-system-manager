@@ -3,19 +3,22 @@
 import { useState, useCallback } from 'react'
 import { User } from '@supabase/supabase-js'
 import { Profile } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { signOut } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/useToast'
 import { ToastContainer } from '@/components/ui/toast'
 import FileUploadManager from './FileUploadManager'
 import SimpleFileList from './SimpleFileList'
+import TechnicianInventory from './TechnicianInventory'
 import { 
   User as UserIcon, 
   FileText, 
   CheckSquare, 
   Upload,
   LogOut,
-  Settings
+  Settings,
+  Package
 } from 'lucide-react'
 
 interface TechnicianDashboardProps {
@@ -26,13 +29,22 @@ interface TechnicianDashboardProps {
 export default function TechnicianDashboard({ user, profile }: TechnicianDashboardProps) {
   const [activeTab, setActiveTab] = useState('profile')
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [profileData, setProfileData] = useState({
+    full_name: profile.full_name || '',
+    phone: profile.phone || ''
+  })
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
   const { toasts, toast, removeToast } = useToast()
 
   const handleSignOut = async () => {
+    console.log('Çıkış butonu tıklandı')
     try {
+      console.log('signOut fonksiyonu çağırılıyor...')
       await signOut()
+      console.log('signOut başarılı')
     } catch (error) {
       console.error('Sign out error:', error)
+      handleToast('error', 'Çıkış Hatası', 'Çıkış yapılamadı')
     }
   }
 
@@ -48,6 +60,36 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
     setRefreshTrigger(prev => prev + 1)
   }
 
+  // Profil güncelleme
+  const handleProfileUpdate = async () => {
+    setIsUpdatingProfile(true)
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: profileData.full_name,
+          phone: profileData.phone
+        })
+        .eq('id', profile.id)
+
+      if (error) throw error
+
+      handleToast('success', 'Profil Güncellendi', 'Bilgileriniz başarıyla güncellendi')
+      
+      // Sayfayı yenile ki güncel bilgiler gözüksün
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+      
+    } catch (error: any) {
+      console.error('Profil güncelleme hatası:', error)
+      handleToast('error', 'Güncelleme Hatası', 'Profil güncellenemedi')
+    } finally {
+      setIsUpdatingProfile(false)
+    }
+  }
+
   // Tab değişimi
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId)
@@ -56,6 +98,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
   const menuItems = [
     { id: 'profile', label: 'Profilim', icon: UserIcon },
     { id: 'files', label: 'Dosyalarım', icon: FileText },
+    { id: 'inventory', label: 'Envanterim', icon: Package },
     { id: 'tasks', label: 'Görevlerim', icon: CheckSquare },
     { id: 'upload', label: 'Dosya Yükle', icon: Upload },
   ]
@@ -154,9 +197,10 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                       </label>
                       <input
                         type="text"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                        value={profile.full_name}
-                        readOnly
+                        value={profileData.full_name}
+                        onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        placeholder="Adınızı ve soyadınızı girin"
                       />
                     </div>
                     <div>
@@ -169,6 +213,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                         value={profile.email}
                         readOnly
                       />
+                      <p className="text-xs text-gray-500 mt-1">E-posta adresi değiştirilemez</p>
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -176,14 +221,19 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                       </label>
                       <input
                         type="tel"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                        value={profile.phone || ''}
+                        value={profileData.phone}
+                        onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         placeholder="Telefon numarası ekleyin"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-all duration-200">
-                        Bilgileri Güncelle
+                      <Button 
+                        onClick={handleProfileUpdate}
+                        disabled={isUpdatingProfile}
+                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-all duration-200 disabled:opacity-50"
+                      >
+                        {isUpdatingProfile ? 'Güncelleniyor...' : 'Bilgileri Güncelle'}
                       </Button>
                     </div>
                   </div>
@@ -227,6 +277,21 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                       Yakında Aktif Olacak
                     </Button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'inventory' && (
+              <div>
+                <div className="mb-8">
+                  <h2 className="text-3xl font-bold text-gray-900">Envanterim</h2>
+                  <p className="text-gray-600 mt-1">Size atanan envanter öğeleri</p>
+                </div>
+                <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+                  <TechnicianInventory 
+                    technicianId={user.id}
+                    onToast={handleToast}
+                  />
                 </div>
               </div>
             )}

@@ -12,17 +12,21 @@ export default function LoginForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Login butonu tıklandı:', email)
     setLoading(true)
     setError('')
 
     try {
+      console.log('Supabase giriş denemesi...')
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (error) throw error
+      console.log('Login başarılı!')
     } catch (error: any) {
+      console.error('Login error:', error)
       setError(error.message)
     } finally {
       setLoading(false)

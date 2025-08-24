@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { getCityOptions } from '@/lib/cities'
@@ -35,6 +35,28 @@ export default function CleanTechnicianForm({
     city: technician?.city || 'antalya'
   })
   const [loading, setLoading] = useState(false)
+
+  // Tekniksyen değiştiğinde formu güncelle
+  useEffect(() => {
+    if (technician) {
+      setFormData({
+        full_name: technician.full_name || '',
+        email: technician.email || '',
+        password: '',
+        phone: technician.phone || '',
+        city: technician.city || 'antalya'
+      })
+    } else {
+      // Yeni tekniksyen için formu temizle
+      setFormData({
+        full_name: '',
+        email: '',
+        password: '',
+        phone: '',
+        city: 'antalya'
+      })
+    }
+  }, [technician])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

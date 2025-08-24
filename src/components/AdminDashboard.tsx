@@ -9,6 +9,7 @@ import { ToastContainer } from '@/components/ui/toast'
 import { useToast } from '@/hooks/useToast'
 import TechnicianManager from './TechnicianManager'
 import TechnicianFileGroups from './TechnicianFileGroups'
+import InventoryManager from './InventoryManager'
 import { 
   Users, 
   FileText, 
@@ -28,10 +29,14 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
   const { toasts, toast, removeToast } = useToast()
 
   const handleSignOut = async () => {
+    console.log('Admin çıkış butonu tıklandı')
     try {
+      console.log('Admin signOut fonksiyonu çağırılıyor...')
       await signOut()
+      console.log('Admin signOut başarılı')
     } catch (error) {
-      console.error('Sign out error:', error)
+      console.error('Admin sign out error:', error)
+      handleToast('error', 'Çıkış Hatası', 'Çıkış yapılamadı')
     }
   }
 
@@ -163,16 +168,12 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
               <div>
                 <div className="flex justify-between items-center mb-8">
                   <div>
-                    <h2 className="text-3xl font-bold text-gray-900">Envanter</h2>
+                    <h2 className="text-3xl font-bold text-gray-900">Envanter Yönetimi</h2>
                     <p className="text-gray-600 mt-1">Ekipman ve malzeme takibi</p>
                   </div>
-                  <Button className="bg-purple-600 hover:bg-purple-700 text-white">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Yeni Ürün
-                  </Button>
                 </div>
-                <div className="bg-white shadow-sm rounded-lg p-8 border border-gray-200">
-                  <p className="text-gray-500 text-center">Envanter yönetimi yakında eklenecek...</p>
+                <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+                  <InventoryManager onToast={handleToast} />
                 </div>
               </div>
             )}
