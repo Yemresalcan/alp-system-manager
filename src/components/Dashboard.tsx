@@ -3,8 +3,8 @@
 import { User } from '@supabase/supabase-js'
 import { Profile } from '@/lib/supabase'
 import { isAdmin } from '@/lib/auth'
-import AdminDashboard from './AdminDashboard'
-import TechnicianDashboard from './TechnicianDashboard'
+import AdminDashboardNew from './AdminDashboardNew'
+import TechnicianDashboardNew from './TechnicianDashboardNew'
 
 interface DashboardProps {
   user: User
@@ -13,8 +13,8 @@ interface DashboardProps {
 
 export default function Dashboard({ user, profile }: DashboardProps) {
   if (isAdmin(profile.role)) {
-    return <AdminDashboard user={user} profile={profile} />
+    return <AdminDashboardNew user={user} profile={profile} />
   } else {
-    return <TechnicianDashboard user={user} profile={profile} />
+    return <TechnicianDashboardNew user={user} profile={profile} />
   }
 }
