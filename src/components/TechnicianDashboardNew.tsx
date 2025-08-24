@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
-import { Profile } from '@/lib/supabase'
-import { supabase } from '@/lib/supabase'
+import { Profile, supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/useToast'
 import { ToastContainer } from '@/components/ui/toast'
 import ModernNavbar from './ModernNavbar'
@@ -26,10 +25,24 @@ interface TechnicianDashboardProps {
   profile: Profile
 }
 
+interface TechnicianStats {
+  totalFiles: number
+  assignedInventory: number
+  pendingTasks: number
+  completedTasks: number
+}
+
 export default function TechnicianDashboard({ user, profile }: TechnicianDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview')
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [stats, setStats] = useState<TechnicianStats>({
+    totalFiles: 0,
+    assignedInventory: 0,
+    pendingTasks: 0,
+    completedTasks: 0
+  })
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
   const [profileData, setProfileData] = useState({
     full_name: profile.full_name || '',
     phone: profile.phone || ''
@@ -49,8 +62,83 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
     setTheme(theme === 'light' ? 'dark' : 'light')
   }
 
+  // Gerçek verileri çek
+  const fetchTechnicianStats = useCallback(async () => {
+    try {
+      setIsLoadingStats(true)
+      console.log('Tekniksyen stats yükleniyor...', user.id)
+
+      // Bu tekniksyenin dosyaları - güvenli şekilde
+      let filesCount = 0
+      try {
+        const { data: files, error: filesError } = await supabase
+          .from('files')
+          .select('id')
+          .eq('user_id', user.id)
+
+        if (filesError) {
+          console.warn('Tekniksyen dosya verileri çekilemedi:', filesError)
+        } else {
+          filesCount = files?.length || 0
+          console.log('Tekniksyen dosya sayısı:', filesCount)
+        }
+      } catch (err) {
+        console.warn('Tekniksyen dosya sorgusu hatası:', err)
+      }
+
+      // Bu tekniksyene atanan envanter öğeleri - güvenli şekilde
+      let assignmentsCount = 0
+      try {
+        const { data: assignments, error: assignmentsError } = await supabase
+          .from('inventory_assignments')
+          .select('id')
+          .eq('technician_id', user.id)
+
+        if (assignmentsError) {
+          console.warn('Tekniksyen atama verileri çekilemedi:', assignmentsError)
+        } else {
+          assignmentsCount = assignments?.length || 0
+          console.log('Tekniksyen atama sayısı:', assignmentsCount)
+        }
+      } catch (err) {
+        console.warn('Tekniksyen atama sorgusu hatası:', err)
+      }
+
+      const newStats = {
+        totalFiles: filesCount,
+        assignedInventory: assignmentsCount,
+        pendingTasks: 0, // Görev sistemi henüz yok
+        completedTasks: 0 // Görev sistemi henüz yok
+      }
+
+      console.log('Tekniksyen stats güncellendi:', newStats)
+      setStats(newStats)
+
+    } catch (error: any) {
+      console.error('Tekniksyen stats genel hatası:', error)
+      console.error('Hata detayları:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      handleToast('error', 'Veri Yükleme Hatası', `İstatistikler yüklenemedi: ${error.message || 'Bilinmeyen hata'}`)
+    } finally {
+      setIsLoadingStats(false)
+      console.log('Tekniksyen stats yükleme tamamlandı')
+    }
+  }, [user.id])
+
+  useEffect(() => {
+    fetchTechnicianStats()
+  }, [fetchTechnicianStats])
+
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId)
+    // Genel bakış sekmesine geçildiğinde verileri yenile
+    if (tabId === 'overview') {
+      fetchTechnicianStats()
+    }
   }
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -171,7 +259,9 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                     <span className={`text-sm ${
                       theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                     }`}>Bekleyen Görev</span>
-                    <span className={`font-bold text-orange-500`}>3</span>
+                    <span className={`font-bold text-orange-500`}>
+                      {isLoadingStats ? '...' : stats.pendingTasks}
+                    </span>
                   </div>
                 </div>
                 <div className={`p-3 rounded-lg ${
@@ -181,7 +271,9 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                     <span className={`text-sm ${
                       theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                     }`}>Tamamlanan</span>
-                    <span className={`font-bold text-green-500`}>18</span>
+                    <span className={`font-bold text-green-500`}>
+                      {isLoadingStats ? '...' : stats.completedTasks}
+                    </span>
                   </div>
                 </div>
                 <div className={`p-3 rounded-lg ${
@@ -191,7 +283,9 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                     <span className={`text-sm ${
                       theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                     }`}>Dosya Sayısı</span>
-                    <span className={`font-bold text-blue-500`}>12</span>
+                    <span className={`font-bold text-blue-500`}>
+                      {isLoadingStats ? '...' : stats.totalFiles}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -260,7 +354,11 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                             Tamamlanan Görev
                           </p>
                           <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            18
+                            {isLoadingStats ? (
+                              <span className="animate-pulse">...</span>
+                            ) : (
+                              stats.completedTasks
+                            )}
                           </p>
                         </div>
                       </div>
@@ -277,7 +375,11 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                             Bekleyen Görev
                           </p>
                           <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            3
+                            {isLoadingStats ? (
+                              <span className="animate-pulse">...</span>
+                            ) : (
+                              stats.pendingTasks
+                            )}
                           </p>
                         </div>
                       </div>
@@ -294,7 +396,11 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                             Dosya Sayısı
                           </p>
                           <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            12
+                            {isLoadingStats ? (
+                              <span className="animate-pulse">...</span>
+                            ) : (
+                              stats.totalFiles
+                            )}
                           </p>
                         </div>
                       </div>
@@ -308,10 +414,14 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                         </div>
                         <div className="ml-4">
                           <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            Malzeme/Araç
+                            Atanan Malzeme
                           </p>
                           <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            8
+                            {isLoadingStats ? (
+                              <span className="animate-pulse">...</span>
+                            ) : (
+                              stats.assignedInventory
+                            )}
                           </p>
                         </div>
                       </div>

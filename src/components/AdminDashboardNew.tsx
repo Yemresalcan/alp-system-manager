@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useCallback, memo } from 'react'
+import { useState, useCallback, memo, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
-import { Profile } from '@/lib/supabase'
+import { Profile, supabase } from '@/lib/supabase'
 import { ToastContainer } from '@/components/ui/toast'
 import { useToast } from '@/hooks/useToast'
 import ModernNavbar from './ModernNavbar'
@@ -23,9 +23,27 @@ interface AdminDashboardProps {
   profile: Profile
 }
 
+interface DashboardStats {
+  totalTechnicians: number
+  activeTechnicians: number
+  totalFiles: number
+  totalInventoryItems: number
+  pendingTasks: number
+  completedTasks: number
+}
+
 function AdminDashboard({ user, profile }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview')
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [stats, setStats] = useState<DashboardStats>({
+    totalTechnicians: 0,
+    activeTechnicians: 0,
+    totalFiles: 0,
+    totalInventoryItems: 0,
+    pendingTasks: 0,
+    completedTasks: 0
+  })
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
   const { toasts, toast, removeToast } = useToast()
 
   const handleToast = (type: 'success' | 'error', title: string, message?: string) => {
@@ -40,9 +58,103 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
     setTheme(theme === 'light' ? 'dark' : 'light')
   }
 
+  // Gerçek verileri çek
+  const fetchDashboardStats = useCallback(async () => {
+    try {
+      setIsLoadingStats(true)
+      console.log('Dashboard stats yükleniyor...')
+
+      // Tekniksyen sayıları - güvenli şekilde
+      let techniciansCount = 0
+      try {
+        const { data: technicians, error: techError } = await supabase
+          .from('profiles')
+          .select('id, role')
+          .eq('role', 'technician')
+
+        if (techError) {
+          console.warn('Tekniksyen verileri çekilemedi:', techError)
+        } else {
+          techniciansCount = technicians?.length || 0
+          console.log('Tekniksyen sayısı:', techniciansCount)
+        }
+      } catch (err) {
+        console.warn('Tekniksyen sorgusu hatası:', err)
+      }
+
+      // Dosya sayıları - güvenli şekilde
+      let filesCount = 0
+      try {
+        const { data: files, error: filesError } = await supabase
+          .from('files')
+          .select('id')
+
+        if (filesError) {
+          console.warn('Dosya verileri çekilemedi:', filesError)
+        } else {
+          filesCount = files?.length || 0
+          console.log('Dosya sayısı:', filesCount)
+        }
+      } catch (err) {
+        console.warn('Dosya sorgusu hatası:', err)
+      }
+
+      // Envanter sayıları - güvenli şekilde
+      let inventoryCount = 0
+      try {
+        const { data: inventory, error: inventoryError } = await supabase
+          .from('inventory_items')
+          .select('id')
+
+        if (inventoryError) {
+          console.warn('Envanter verileri çekilemedi:', inventoryError)
+        } else {
+          inventoryCount = inventory?.length || 0
+          console.log('Envanter sayısı:', inventoryCount)
+        }
+      } catch (err) {
+        console.warn('Envanter sorgusu hatası:', err)
+      }
+
+      // İstatistikleri güncelle
+      const newStats = {
+        totalTechnicians: techniciansCount,
+        activeTechnicians: techniciansCount, // Şimdilik hepsi aktif
+        totalFiles: filesCount,
+        totalInventoryItems: inventoryCount,
+        pendingTasks: 0, // Görev sistemi henüz yok
+        completedTasks: 0 // Görev sistemi henüz yok
+      }
+
+      console.log('Dashboard stats güncellendi:', newStats)
+      setStats(newStats)
+
+    } catch (error: any) {
+      console.error('Dashboard stats genel hatası:', error)
+      console.error('Hata detayları:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      handleToast('error', 'Veri Yükleme Hatası', `İstatistikler yüklenemedi: ${error.message || 'Bilinmeyen hata'}`)
+    } finally {
+      setIsLoadingStats(false)
+      console.log('Dashboard stats yükleme tamamlandı')
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchDashboardStats()
+  }, [fetchDashboardStats])
+
   // Tab değişimi
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId)
+    // Genel bakış sekmesine geçildiğinde verileri yenile
+    if (tabId === 'overview') {
+      fetchDashboardStats()
+    }
   }
 
   const menuItems = [
@@ -137,7 +249,9 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
                     <span className={`text-sm ${
                       theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                     }`}>Aktif Tekniksyen</span>
-                    <span className={`font-bold text-green-500`}>12</span>
+                    <span className={`font-bold text-green-500`}>
+                      {isLoadingStats ? '...' : stats.activeTechnicians}
+                    </span>
                   </div>
                 </div>
                 <div className={`p-3 rounded-lg ${
@@ -146,8 +260,10 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
                   <div className="flex justify-between items-center">
                     <span className={`text-sm ${
                       theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                    }`}>Bekleyen Görev</span>
-                    <span className={`font-bold text-orange-500`}>8</span>
+                    }`}>Toplam Dosya</span>
+                    <span className={`font-bold text-orange-500`}>
+                      {isLoadingStats ? '...' : stats.totalFiles}
+                    </span>
                   </div>
                 </div>
                 <div className={`p-3 rounded-lg ${
@@ -156,8 +272,10 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
                   <div className="flex justify-between items-center">
                     <span className={`text-sm ${
                       theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                    }`}>Tamamlanan</span>
-                    <span className={`font-bold text-blue-500`}>47</span>
+                    }`}>Envanter Öğesi</span>
+                    <span className={`font-bold text-blue-500`}>
+                      {isLoadingStats ? '...' : stats.totalInventoryItems}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -225,7 +343,11 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
                           Toplam Tekniksyen
                         </p>
                         <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          12
+                          {isLoadingStats ? (
+                            <span className="animate-pulse">...</span>
+                          ) : (
+                            stats.totalTechnicians
+                          )}
                         </p>
                       </div>
                     </div>
@@ -234,15 +356,19 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
                     theme === 'dark' ? 'bg-slate-800' : 'bg-white'
                   } shadow-sm`}>
                     <div className="flex items-center">
-                      <div className="p-3 bg-green-100 rounded-xl">
-                        <CheckSquare className="h-6 w-6 text-green-600" />
+                      <div className="p-3 bg-purple-100 rounded-xl">
+                        <FileText className="h-6 w-6 text-purple-600" />
                       </div>
                       <div className="ml-4">
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Tamamlanan Görev
+                          Toplam Dosya
                         </p>
                         <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          47
+                          {isLoadingStats ? (
+                            <span className="animate-pulse">...</span>
+                          ) : (
+                            stats.totalFiles
+                          )}
                         </p>
                       </div>
                     </div>
@@ -259,7 +385,11 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
                           Envanter Öğesi
                         </p>
                         <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          234
+                          {isLoadingStats ? (
+                            <span className="animate-pulse">...</span>
+                          ) : (
+                            stats.totalInventoryItems
+                          )}
                         </p>
                       </div>
                     </div>
@@ -268,15 +398,19 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
                     theme === 'dark' ? 'bg-slate-800' : 'bg-white'
                   } shadow-sm`}>
                     <div className="flex items-center">
-                      <div className="p-3 bg-purple-100 rounded-xl">
-                        <FileText className="h-6 w-6 text-purple-600" />
+                      <div className="p-3 bg-green-100 rounded-xl">
+                        <CheckSquare className="h-6 w-6 text-green-600" />
                       </div>
                       <div className="ml-4">
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Dosya Paylaşımı
+                          Sistem Durumu
                         </p>
                         <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          156
+                          {isLoadingStats ? (
+                            <span className="animate-pulse">...</span>
+                          ) : (
+                            'Aktif'
+                          )}
                         </p>
                       </div>
                     </div>
