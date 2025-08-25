@@ -79,18 +79,21 @@ function TechnicianManager({ onToast }: TechnicianManagerProps) {
     }
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', id)
+      const response = await fetch(`/api/admin/technicians?id=${id}`, {
+        method: 'DELETE'
+      })
 
-      if (error) throw error
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Silme başarısız')
+      }
 
-      onToast('success', 'Silindi', `${name} başarıyla silindi`)
+      onToast('success', 'Silindi', result.message)
       loadTechnicians()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Silme hatası:', error)
-      onToast('error', 'Hata', 'Tekniksyen silinemedi')
+      onToast('error', 'Hata', error.message || 'Tekniksyen silinemedi')
     }
   }
 
