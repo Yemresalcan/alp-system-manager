@@ -44,6 +44,7 @@ function SimpleFileList({
   const loadFiles = async () => {
     try {
       setLoading(true)
+      console.log('📂 Dosyalar yükleniyor... Teknisyen ID:', technicianId)
       
       let query = supabase
         .from('technician_files')
@@ -61,12 +62,20 @@ function SimpleFileList({
 
       // Sadece belirli tekniksyenin dosyaları
       if (technicianId) {
+        console.log('🔍 Sadece teknisyen dosyaları filtreleniyor:', technicianId)
         query = query.eq('technician_id', technicianId)
       }
 
+      console.log('🔍 SQL Query çalıştırılıyor...')
       const { data, error } = await query
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ Dosya listesi hatası:', error)
+        throw error
+      }
+
+      console.log('✅ Dosya listesi başarılı:', data)
+      console.log('📊 Toplam dosya sayısı:', data?.length || 0)
 
       // Veriyi düzenle
       const formattedFiles = (data || []).map(file => ({

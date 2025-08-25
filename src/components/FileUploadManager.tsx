@@ -47,25 +47,43 @@ export default function FileUploadManager({
     }])
 
     try {
-      // 1. Dosyayı Supabase Storage'a yükle
+      console.log('🔄 Dosya yükleniyor:', file.name, 'Teknisyen ID:', technicianId)
+      
+      // 1. Dosyayı Supabase Storage'a yükle  
+      console.log('📁 Storage upload başlatılıyor:', filePath)
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('technician-files')
         .upload(filePath, file)
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error('❌ Storage upload hatası:', uploadError)
+        throw uploadError
+      }
+      
+      console.log('✅ Storage upload başarılı:', uploadData)
 
       // 2. Database'e kaydet
-      const { error: dbError } = await supabase
+      console.log('💾 Database insert başlatılıyor...')
+      const dbInsertData = {
+        technician_id: technicianId,
+        file_name: file.name,
+        file_path: uploadData.path,
+        file_size: file.size,
+        file_type: file.type
+      }
+      console.log('📊 Insert edilecek data:', dbInsertData)
+      
+      const { data: dbData, error: dbError } = await supabase
         .from('technician_files')
-        .insert({
-          technician_id: technicianId,
-          file_name: file.name,
-          file_path: uploadData.path,
-          file_size: file.size,
-          file_type: file.type
-        })
+        .insert(dbInsertData)
+        .select()
 
-      if (dbError) throw dbError
+      if (dbError) {
+        console.error('❌ Database insert hatası:', dbError)
+        throw dbError
+      }
+      
+      console.log('✅ Database insert başarılı:', dbData)
 
       // Success
       setUploadingFiles(prev => 
