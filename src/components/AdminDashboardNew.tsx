@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useCallback, memo, useEffect } from 'react'
+import { useState, memo } from 'react'
 import { User } from '@supabase/supabase-js'
-import { Profile, supabase } from '@/lib/supabase'
+import { Profile } from '@/lib/supabase'
 import { ToastContainer } from '@/components/ui/toast'
 import { useToast } from '@/hooks/useToast'
 import ModernNavbar from './ModernNavbar'
@@ -23,27 +23,9 @@ interface AdminDashboardProps {
   profile: Profile
 }
 
-interface DashboardStats {
-  totalTechnicians: number
-  activeTechnicians: number
-  totalFiles: number
-  totalInventoryItems: number
-  pendingTasks: number
-  completedTasks: number
-}
-
 function AdminDashboard({ user, profile }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview')
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
-  const [stats, setStats] = useState<DashboardStats>({
-    totalTechnicians: 0,
-    activeTechnicians: 0,
-    totalFiles: 0,
-    totalInventoryItems: 0,
-    pendingTasks: 0,
-    completedTasks: 0
-  })
-  const [isLoadingStats, setIsLoadingStats] = useState(true)
   const { toasts, toast, removeToast } = useToast()
 
   const handleToast = (type: 'success' | 'error', title: string, message?: string) => {
@@ -58,98 +40,8 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
     setTheme(theme === 'light' ? 'dark' : 'light')
   }
 
-  // Gerçek verileri çek
-  const fetchDashboardStats = useCallback(async () => {
-    try {
-      setIsLoadingStats(true)
-      console.log('Dashboard stats yükleniyor...')
-
-      // Tekniksyen sayıları - güvenli şekilde
-      let techniciansCount = 0
-      try {
-        const { data: technicians, error: techError } = await supabase
-          .from('profiles')
-          .select('id, role')
-          .eq('role', 'technician')
-
-        if (techError) {
-          console.warn('Tekniksyen verileri çekilemedi:', techError)
-        } else {
-          techniciansCount = technicians?.length || 0
-          console.log('Tekniksyen sayısı:', techniciansCount)
-        }
-      } catch (err) {
-        console.warn('Tekniksyen sorgusu hatası:', err)
-      }
-
-      // Dosya sayıları - güvenli şekilde
-      let filesCount = 0
-      try {
-        const { data: files, error: filesError } = await supabase
-          .from('files')
-          .select('id')
-
-        if (filesError) {
-          console.warn('Dosya verileri çekilemedi:', filesError)
-        } else {
-          filesCount = files?.length || 0
-          console.log('Dosya sayısı:', filesCount)
-        }
-      } catch (err) {
-        console.warn('Dosya sorgusu hatası:', err)
-      }
-
-      // Envanter sayıları - güvenli şekilde
-      let inventoryCount = 0
-      try {
-        const { data: inventory, error: inventoryError } = await supabase
-          .from('inventory_items')
-          .select('id')
-
-        if (inventoryError) {
-          console.warn('Envanter verileri çekilemedi:', inventoryError)
-        } else {
-          inventoryCount = inventory?.length || 0
-          console.log('Envanter sayısı:', inventoryCount)
-        }
-      } catch (err) {
-        console.warn('Envanter sorgusu hatası:', err)
-      }
-
-      // İstatistikleri güncelle
-      const newStats = {
-        totalTechnicians: techniciansCount,
-        activeTechnicians: techniciansCount, // Şimdilik hepsi aktif
-        totalFiles: filesCount,
-        totalInventoryItems: inventoryCount,
-        pendingTasks: 0, // Görev sistemi henüz yok
-        completedTasks: 0 // Görev sistemi henüz yok
-      }
-
-      console.log('Dashboard stats güncellendi:', newStats)
-      setStats(newStats)
-
-    } catch (error: unknown) {
-      console.error('Dashboard stats genel hatası:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata'
-      handleToast('error', 'Veri Yükleme Hatası', `İstatistikler yüklenemedi: ${errorMessage}`)
-    } finally {
-      setIsLoadingStats(false)
-      console.log('Dashboard stats yükleme tamamlandı')
-    }
-  }, [handleToast])
-
-  useEffect(() => {
-    fetchDashboardStats()
-  }, [fetchDashboardStats])
-
-  // Tab değişimi
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId)
-    // Genel bakış sekmesine geçildiğinde verileri yenile
-    if (tabId === 'overview') {
-      fetchDashboardStats()
-    }
   }
 
   const menuItems = [
@@ -228,53 +120,6 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
                 )
               })}
             </nav>
-
-            {/* Quick Stats */}
-            <div className="mt-8 space-y-4">
-              <h4 className={`text-sm font-semibold ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-              } uppercase tracking-wider`}>
-                Hızlı İstatistikler
-              </h4>
-              <div className="space-y-3">
-                <div className={`p-3 rounded-lg ${
-                  theme === 'dark' ? 'bg-slate-700' : 'bg-gray-50'
-                }`}>
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${
-                      theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                    }`}>Aktif Tekniksyen</span>
-                    <span className={`font-bold text-green-500`}>
-                      {isLoadingStats ? '...' : stats.activeTechnicians}
-                    </span>
-                  </div>
-                </div>
-                <div className={`p-3 rounded-lg ${
-                  theme === 'dark' ? 'bg-slate-700' : 'bg-gray-50'
-                }`}>
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${
-                      theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                    }`}>Toplam Dosya</span>
-                    <span className={`font-bold text-orange-500`}>
-                      {isLoadingStats ? '...' : stats.totalFiles}
-                    </span>
-                  </div>
-                </div>
-                <div className={`p-3 rounded-lg ${
-                  theme === 'dark' ? 'bg-slate-700' : 'bg-gray-50'
-                }`}>
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${
-                      theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                    }`}>Envanter Öğesi</span>
-                    <span className={`font-bold text-blue-500`}>
-                      {isLoadingStats ? '...' : stats.totalInventoryItems}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -301,7 +146,7 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
                     {activeTab === 'files' && 'Dosya yüklemeleri ve paylaşımları'}
                     {activeTab === 'tasks' && 'Görev atamaları ve takibi'}
                     {activeTab === 'inventory' && 'Envanter ve malzeme yönetimi'}
-                    {activeTab === 'overview' && 'Sistem genel durumu ve istatistikler'}
+                    {activeTab === 'overview' && 'Sistem genel durumu ve yönetim paneli'}
                     {activeTab === 'calendar' && 'Randevu ve etkinlik yönetimi'}
                   </p>
                 </div>
@@ -325,89 +170,58 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
             {/* Content Area */}
             <div className="max-w-7xl mx-auto">
               {activeTab === 'overview' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                  <div className={`p-6 rounded-xl ${
-                    theme === 'dark' ? 'bg-slate-800' : 'bg-white'
-                  } shadow-sm`}>
-                    <div className="flex items-center">
-                      <div className="p-3 bg-blue-100 rounded-xl">
-                        <Users className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Toplam Tekniksyen
-                        </p>
-                        <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          {isLoadingStats ? (
-                            <span className="animate-pulse">...</span>
-                          ) : (
-                            stats.totalTechnicians
-                          )}
-                        </p>
-                      </div>
+                <div className={`p-8 rounded-xl ${
+                  theme === 'dark' ? 'bg-slate-800' : 'bg-white'
+                } shadow-sm text-center`}>
+                  <BarChart3 className={`mx-auto h-16 w-16 ${
+                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                  } mb-4`} />
+                  <h3 className={`text-2xl font-bold ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  } mb-2`}>
+                    Alp Sistem Yönetim Paneli
+                  </h3>
+                  <p className={`text-lg ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                  } mb-6`}>
+                    Teknisyen ve envanter yönetim sistemi
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
+                    <div className={`p-4 rounded-lg ${
+                      theme === 'dark' ? 'bg-slate-700' : 'bg-gray-50'
+                    }`}>
+                      <Users className={`h-8 w-8 mx-auto mb-2 ${
+                        theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                      }`} />
+                      <p className={`font-medium ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        Tekniksyen Yönetimi
+                      </p>
                     </div>
-                  </div>
-                  <div className={`p-6 rounded-xl ${
-                    theme === 'dark' ? 'bg-slate-800' : 'bg-white'
-                  } shadow-sm`}>
-                    <div className="flex items-center">
-                      <div className="p-3 bg-purple-100 rounded-xl">
-                        <FileText className="h-6 w-6 text-purple-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Toplam Dosya
-                        </p>
-                        <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          {isLoadingStats ? (
-                            <span className="animate-pulse">...</span>
-                          ) : (
-                            stats.totalFiles
-                          )}
-                        </p>
-                      </div>
+                    <div className={`p-4 rounded-lg ${
+                      theme === 'dark' ? 'bg-slate-700' : 'bg-gray-50'
+                    }`}>
+                      <FileText className={`h-8 w-8 mx-auto mb-2 ${
+                        theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                      }`} />
+                      <p className={`font-medium ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        Dosya Yönetimi
+                      </p>
                     </div>
-                  </div>
-                  <div className={`p-6 rounded-xl ${
-                    theme === 'dark' ? 'bg-slate-800' : 'bg-white'
-                  } shadow-sm`}>
-                    <div className="flex items-center">
-                      <div className="p-3 bg-orange-100 rounded-xl">
-                        <Package className="h-6 w-6 text-orange-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Envanter Öğesi
-                        </p>
-                        <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          {isLoadingStats ? (
-                            <span className="animate-pulse">...</span>
-                          ) : (
-                            stats.totalInventoryItems
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className={`p-6 rounded-xl ${
-                    theme === 'dark' ? 'bg-slate-800' : 'bg-white'
-                  } shadow-sm`}>
-                    <div className="flex items-center">
-                      <div className="p-3 bg-green-100 rounded-xl">
-                        <CheckSquare className="h-6 w-6 text-green-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Sistem Durumu
-                        </p>
-                        <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          {isLoadingStats ? (
-                            <span className="animate-pulse">...</span>
-                          ) : (
-                            'Aktif'
-                          )}
-                        </p>
-                      </div>
+                    <div className={`p-4 rounded-lg ${
+                      theme === 'dark' ? 'bg-slate-700' : 'bg-gray-50'
+                    }`}>
+                      <Package className={`h-8 w-8 mx-auto mb-2 ${
+                        theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                      }`} />
+                      <p className={`font-medium ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        Envanter Yönetimi
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -473,5 +287,4 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
     </div>
   )
 }
-
 export default memo(AdminDashboard)
