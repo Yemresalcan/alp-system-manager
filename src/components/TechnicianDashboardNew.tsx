@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { Profile, supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/useToast'
@@ -12,12 +12,11 @@ import TechnicianInventory from './TechnicianInventory'
 import { 
   User as UserIcon, 
   FileText, 
-  CheckSquare, 
   Upload,
   Settings,
   Package,
   BarChart3,
-  Clock
+  CheckSquare
 } from 'lucide-react'
 
 interface TechnicianDashboardProps {
@@ -25,24 +24,15 @@ interface TechnicianDashboardProps {
   profile: Profile
 }
 
-interface TechnicianStats {
-  totalFiles: number
-  assignedInventory: number
-  pendingTasks: number
-  completedTasks: number
+interface TechnicianDashboardProps {
+  user: User
+  profile: Profile
 }
 
 export default function TechnicianDashboard({ user, profile }: TechnicianDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview')
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [refreshTrigger, setRefreshTrigger] = useState(0)
-  const [stats, setStats] = useState<TechnicianStats>({
-    totalFiles: 0,
-    assignedInventory: 0,
-    pendingTasks: 0,
-    completedTasks: 0
-  })
-  const [isLoadingStats, setIsLoadingStats] = useState(true)
   const [profileData, setProfileData] = useState({
     full_name: profile.full_name || '',
     phone: profile.phone || ''
@@ -62,78 +52,8 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
     setTheme(theme === 'light' ? 'dark' : 'light')
   }
 
-  // Gerçek verileri çek
-  const fetchTechnicianStats = useCallback(async () => {
-    try {
-      setIsLoadingStats(true)
-      console.log('Tekniksyen stats yükleniyor...', user.id)
-
-      // Bu tekniksyenin dosyaları - güvenli şekilde
-      let filesCount = 0
-      try {
-        const { data: files, error: filesError } = await supabase
-          .from('files')
-          .select('id')
-          .eq('user_id', user.id)
-
-        if (filesError) {
-          console.warn('Tekniksyen dosya verileri çekilemedi:', filesError)
-        } else {
-          filesCount = files?.length || 0
-          console.log('Tekniksyen dosya sayısı:', filesCount)
-        }
-      } catch (err) {
-        console.warn('Tekniksyen dosya sorgusu hatası:', err)
-      }
-
-      // Bu tekniksyene atanan envanter öğeleri - güvenli şekilde
-      let assignmentsCount = 0
-      try {
-        const { data: assignments, error: assignmentsError } = await supabase
-          .from('inventory_assignments')
-          .select('id')
-          .eq('technician_id', user.id)
-
-        if (assignmentsError) {
-          console.warn('Tekniksyen atama verileri çekilemedi:', assignmentsError)
-        } else {
-          assignmentsCount = assignments?.length || 0
-          console.log('Tekniksyen atama sayısı:', assignmentsCount)
-        }
-      } catch (err) {
-        console.warn('Tekniksyen atama sorgusu hatası:', err)
-      }
-
-      const newStats = {
-        totalFiles: filesCount,
-        assignedInventory: assignmentsCount,
-        pendingTasks: 0, // Görev sistemi henüz yok
-        completedTasks: 0 // Görev sistemi henüz yok
-      }
-
-      console.log('Tekniksyen stats güncellendi:', newStats)
-      setStats(newStats)
-
-    } catch (error: unknown) {
-      console.error('Tekniksyen stats genel hatası:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata'
-      handleToast('error', 'Veri Yükleme Hatası', `İstatistikler yüklenemedi: ${errorMessage}`)
-    } finally {
-      setIsLoadingStats(false)
-      console.log('Tekniksyen stats yükleme tamamlandı')
-    }
-  }, [user.id, handleToast])
-
-  useEffect(() => {
-    fetchTechnicianStats()
-  }, [fetchTechnicianStats])
-
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId)
-    // Genel bakış sekmesine geçildiğinde verileri yenile
-    if (tabId === 'overview') {
-      fetchTechnicianStats()
-    }
   }
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -239,53 +159,6 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                 )
               })}
             </nav>
-
-            {/* Quick Stats */}
-            <div className="mt-8 space-y-4">
-              <h4 className={`text-sm font-semibold ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-              } uppercase tracking-wider`}>
-                Hızlı Bilgiler
-              </h4>
-              <div className="space-y-3">
-                <div className={`p-3 rounded-lg ${
-                  theme === 'dark' ? 'bg-slate-700' : 'bg-gray-50'
-                }`}>
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${
-                      theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                    }`}>Bekleyen Görev</span>
-                    <span className={`font-bold text-orange-500`}>
-                      {isLoadingStats ? '...' : stats.pendingTasks}
-                    </span>
-                  </div>
-                </div>
-                <div className={`p-3 rounded-lg ${
-                  theme === 'dark' ? 'bg-slate-700' : 'bg-gray-50'
-                }`}>
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${
-                      theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                    }`}>Tamamlanan</span>
-                    <span className={`font-bold text-green-500`}>
-                      {isLoadingStats ? '...' : stats.completedTasks}
-                    </span>
-                  </div>
-                </div>
-                <div className={`p-3 rounded-lg ${
-                  theme === 'dark' ? 'bg-slate-700' : 'bg-gray-50'
-                }`}>
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${
-                      theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                    }`}>Dosya Sayısı</span>
-                    <span className={`font-bold text-blue-500`}>
-                      {isLoadingStats ? '...' : stats.totalFiles}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -337,91 +210,15 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
             <div className="max-w-7xl mx-auto">
               {activeTab === 'overview' && (
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div className={`p-6 rounded-xl ${
-                      theme === 'dark' ? 'bg-slate-800' : 'bg-white'
-                    } shadow-sm`}>
-                      <div className="flex items-center">
-                        <div className="p-3 bg-green-100 rounded-xl">
-                          <CheckSquare className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div className="ml-4">
-                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            Tamamlanan Görev
-                          </p>
-                          <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            {isLoadingStats ? (
-                              <span className="animate-pulse">...</span>
-                            ) : (
-                              stats.completedTasks
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className={`p-6 rounded-xl ${
-                      theme === 'dark' ? 'bg-slate-800' : 'bg-white'
-                    } shadow-sm`}>
-                      <div className="flex items-center">
-                        <div className="p-3 bg-orange-100 rounded-xl">
-                          <Clock className="h-6 w-6 text-orange-600" />
-                        </div>
-                        <div className="ml-4">
-                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            Bekleyen Görev
-                          </p>
-                          <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            {isLoadingStats ? (
-                              <span className="animate-pulse">...</span>
-                            ) : (
-                              stats.pendingTasks
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className={`p-6 rounded-xl ${
-                      theme === 'dark' ? 'bg-slate-800' : 'bg-white'
-                    } shadow-sm`}>
-                      <div className="flex items-center">
-                        <div className="p-3 bg-purple-100 rounded-xl">
-                          <FileText className="h-6 w-6 text-purple-600" />
-                        </div>
-                        <div className="ml-4">
-                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            Dosya Sayısı
-                          </p>
-                          <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            {isLoadingStats ? (
-                              <span className="animate-pulse">...</span>
-                            ) : (
-                              stats.totalFiles
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className={`p-6 rounded-xl ${
-                      theme === 'dark' ? 'bg-slate-800' : 'bg-white'
-                    } shadow-sm`}>
-                      <div className="flex items-center">
-                        <div className="p-3 bg-blue-100 rounded-xl">
-                          <Package className="h-6 w-6 text-blue-600" />
-                        </div>
-                        <div className="ml-4">
-                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            Atanan Malzeme
-                          </p>
-                          <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            {isLoadingStats ? (
-                              <span className="animate-pulse">...</span>
-                            ) : (
-                              stats.assignedInventory
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                  <div className={`p-8 rounded-xl text-center ${
+                    theme === 'dark' ? 'bg-slate-800' : 'bg-white'
+                  } shadow-sm`}>
+                    <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      Hoş Geldiniz, {profile.full_name}!
+                    </h3>
+                    <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Dosyalarınızı yönetmek ve envanter durumunuzu görüntülemek için menüden seçim yapabilirsiniz.
+                    </p>
                   </div>
                 </div>
               )}
