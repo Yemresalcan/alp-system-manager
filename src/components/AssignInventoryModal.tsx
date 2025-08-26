@@ -2,18 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { InventoryItem } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { getCityInfo } from '@/lib/cities'
 import { X, User, Package, Calendar, MapPin } from 'lucide-react'
-
-interface InventoryItem {
-  id: string
-  name: string
-  description: string | null
-  category: string
-  brand: string | null
-  model: string | null
-}
 
 interface Technician {
   id: string
@@ -38,8 +30,9 @@ export default function AssignInventoryModal({
   onToast 
 }: AssignInventoryModalProps) {
   const [technicians, setTechnicians] = useState<Technician[]>([])
-  const [selectedTechnician, setSelectedTechnician] = useState('')
+  const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>([])
   const [assignmentDate, setAssignmentDate] = useState(new Date().toISOString().split('T')[0])
+  const [quantities, setQuantities] = useState<{[key: string]: number}>({})
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingTechnicians, setLoadingTechnicians] = useState(false)
@@ -68,6 +61,7 @@ export default function AssignInventoryModal({
     if (isOpen) {
       loadTechnicians()
       setSelectedTechnician('')
+      setQuantity(1)
       setAssignmentDate(new Date().toISOString().split('T')[0])
       setNotes('')
     }
@@ -89,33 +83,40 @@ export default function AssignInventoryModal({
     try {
       setLoading(true)
 
-      // Atama kaydı oluştur
-      const { error: assignError } = await supabase
-        .from('technician_inventory')
-        .insert([{
+      // Kullanıcı bilgilerini al
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        throw new Error('Kullanıcı bulunamadı')
+      }
+
+      // API ile atama yap
+      const response = await fetch('/api/inventory/assignments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           technician_id: selectedTechnician,
           inventory_item_id: item.id,
-          assigned_date: assignmentDate,
-          status: 'assigned',
+          assigned_by: user.id,
+          quantity: quantity,
+          expected_return_date: null, // Gelecekte eklenebilir
           notes: notes.trim() || null
-        }])
+        })
+      })
 
-      if (assignError) throw assignError
+      const result = await response.json()
 
-      // Envanter öğesinin durumunu güncelle
-      const { error: updateError } = await supabase
-        .from('inventory_items')
-        .update({ status: 'assigned' })
-        .eq('id', item.id)
+      if (!response.ok) {
+        throw new Error(result.error || 'Atama başarısız')
+      }
 
-      if (updateError) throw updateError
-
-      onToast('success', 'Başarılı', 'Envanter öğesi tekniksyene atandı')
+      onToast('success', 'Başarılı', result.message)
       onSave()
       onClose()
     } catch (error: any) {
       console.error('Atama hatası:', error)
-      onToast('error', 'Hata', 'Atama işlemi başarısız')
+      onToast('error', 'Hata', error.message || 'Atama işlemi başarısız')
     } finally {
       setLoading(false)
     }
@@ -236,6 +237,30 @@ export default function AssignInventoryModal({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
+            </div>
+
+            {/* Miktar Seçimi */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Atanacak Miktar *
+              </label>
+              <div className="flex items-center space-x-4">
+                <input
+                  type="number"
+                  min="1"
+                  max={item.available_quantity || 1}
+                  value={quantity}
+                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+                <span className="text-sm text-gray-600">
+                  {item.unit_type || 'adet'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Müsait miktar: {item.available_quantity || 0} {item.unit_type || 'adet'}
+              </p>
             </div>
 
             {/* Notlar */}

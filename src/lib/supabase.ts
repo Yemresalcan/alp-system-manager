@@ -40,14 +40,71 @@ export interface Task {
   updated_at: string
 }
 
-export interface Inventory {
+export interface InventoryItem {
+  id: string
+  name: string
+  description?: string
+  category: 'cable' | 'safety' | 'tool' | 'device' | 'vehicle' | 'consumable' | 'other'
+  brand?: string
+  model?: string
+  serial_number?: string
+  purchase_date?: string
+  purchase_price?: number
+  status: 'available' | 'assigned' | 'maintenance' | 'lost' | 'retired' | 'partial_assigned'
+  location?: string
+  notes?: string
+  total_quantity: number
+  available_quantity: number
+  assigned_quantity: number
+  unit_type?: string
+  is_consumable?: boolean
+  min_stock_level?: number
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TechnicianInventory {
   id: string
   technician_id: string
-  item_name: string
-  item_code?: string
+  inventory_item_id: string
   quantity: number
-  condition: 'new' | 'good' | 'fair' | 'poor'
+  assigned_date: string
+  return_date?: string
+  expected_return_date?: string
+  status: 'assigned' | 'returned' | 'lost' | 'partial_returned'
+  assigned_by: string
   notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface InventoryMaintenance {
+  id: string
+  inventory_item_id: string
+  maintenance_type: 'scheduled' | 'repair' | 'calibration' | 'inspection'
+  description: string
+  cost?: number
+  maintenance_date: string
+  next_maintenance_date?: string
+  technician_id?: string
+  performed_by?: string
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  notes?: string
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface InventoryCategory {
+  id: string
+  name: string
+  description?: string
+  color?: string
+  icon?: string
+  parent_id?: string
+  sort_order: number
+  is_active: boolean
   created_at: string
   updated_at: string
 }

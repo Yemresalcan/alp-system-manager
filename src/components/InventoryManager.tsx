@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { InventoryItem, TechnicianInventory } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { getCityInfo } from '@/lib/cities'
 import InventoryItemModal from './InventoryItemModal'
-import AssignInventoryModal from './AssignInventoryModal'
+import MultiAssignInventoryModal from './MultiAssignInventoryModal'
 import { 
   Package, 
   Plus, 
@@ -22,23 +23,11 @@ import {
   Shield,
   Monitor,
   Car,
-  ShoppingCart
+  ShoppingCart,
+  MapPin,
+  Hash,
+  Eye
 } from 'lucide-react'
-
-interface InventoryItem {
-  id: string
-  name: string
-  description: string | null
-  category: string
-  brand: string | null
-  model: string | null
-  serial_number: string | null
-  purchase_date: string | null
-  purchase_price: number | null
-  status: string
-  notes: string | null
-  created_at: string
-}
 
 interface TechnicianAssignment {
   id: string
@@ -46,6 +35,7 @@ interface TechnicianAssignment {
   inventory_item_id: string
   assigned_date: string
   return_date: string | null
+  expected_return_date: string | null
   status: string
   notes: string | null
   technician_name: string
@@ -84,13 +74,14 @@ export default function InventoryManager({ onToast }: InventoryManagerProps) {
   const loadInventoryItems = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('inventory_items')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const response = await fetch('/api/inventory')
+      const result = await response.json()
 
-      if (error) throw error
-      setInventoryItems(data || [])
+      if (!response.ok) {
+        throw new Error(result.error || 'Envanter yüklenemedi')
+      }
+
+      setInventoryItems(result.data || [])
     } catch (error: any) {
       console.error('Envanter yüklenirken hata:', error)
       onToast('error', 'Hata', 'Envanter öğeleri yüklenemedi')
@@ -103,23 +94,18 @@ export default function InventoryManager({ onToast }: InventoryManagerProps) {
   const loadAssignments = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('technician_inventory')
-        .select(`
-          *,
-          profiles:technician_id (full_name, city),
-          inventory_items:inventory_item_id (*)
-        `)
-        .eq('status', 'assigned')
-        .order('assigned_date', { ascending: false })
+      const response = await fetch('/api/inventory/assignments?status=assigned')
+      const result = await response.json()
 
-      if (error) throw error
+      if (!response.ok) {
+        throw new Error(result.error || 'Atamalar yüklenemedi')
+      }
 
-      const formattedAssignments = (data || []).map(assignment => ({
+      const formattedAssignments = (result.data || []).map((assignment: any) => ({
         ...assignment,
-        technician_name: (assignment.profiles as any)?.full_name || 'Bilinmiyor',
-        technician_city: (assignment.profiles as any)?.city || 'Bilinmiyor',
-        inventory_item: assignment.inventory_items as InventoryItem
+        technician_name: assignment.profiles?.full_name || 'Bilinmiyor',
+        technician_city: assignment.profiles?.city || 'Bilinmiyor',
+        inventory_item: assignment.inventory_items
       }))
 
       setAssignments(formattedAssignments)
@@ -175,18 +161,21 @@ export default function InventoryManager({ onToast }: InventoryManagerProps) {
     }
 
     try {
-      const { error } = await supabase
-        .from('inventory_items')
-        .delete()
-        .eq('id', item.id)
+      const response = await fetch(`/api/inventory?id=${item.id}`, {
+        method: 'DELETE'
+      })
 
-      if (error) throw error
+      const result = await response.json()
 
-      onToast('success', 'Başarılı', 'Envanter öğesi silindi')
+      if (!response.ok) {
+        throw new Error(result.error || 'Silme başarısız')
+      }
+
+      onToast('success', 'Başarılı', result.message)
       loadInventoryItems()
     } catch (error: any) {
       console.error('Silme hatası:', error)
-      onToast('error', 'Hata', 'Envanter öğesi silinemedi')
+      onToast('error', 'Hata', error.message || 'Envanter öğesi silinemedi')
     }
   }
 
@@ -196,31 +185,29 @@ export default function InventoryManager({ onToast }: InventoryManagerProps) {
     }
 
     try {
-      // Atama kaydını güncelle
-      const { error: assignError } = await supabase
-        .from('technician_inventory')
-        .update({ 
-          status: 'returned',
-          return_date: new Date().toISOString()
+      const response = await fetch('/api/inventory/assignments', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          assignment_id: assignment.id,
+          return_notes: null
         })
-        .eq('id', assignment.id)
+      })
 
-      if (assignError) throw assignError
+      const result = await response.json()
 
-      // Envanter öğesinin durumunu güncelle
-      const { error: updateError } = await supabase
-        .from('inventory_items')
-        .update({ status: 'available' })
-        .eq('id', assignment.inventory_item_id)
+      if (!response.ok) {
+        throw new Error(result.error || 'Geri alma başarısız')
+      }
 
-      if (updateError) throw updateError
-
-      onToast('success', 'Başarılı', 'Envanter öğesi geri alındı')
+      onToast('success', 'Başarılı', result.message)
       loadInventoryItems()
       loadAssignments()
     } catch (error: any) {
       console.error('Geri alma hatası:', error)
-      onToast('error', 'Hata', 'Geri alma işlemi başarısız')
+      onToast('error', 'Hata', error.message || 'Geri alma işlemi başarısız')
     }
   }
 
@@ -415,6 +402,52 @@ export default function InventoryManager({ onToast }: InventoryManagerProps) {
                   <p className="text-gray-600 text-sm mb-3">{item.description}</p>
                 )}
                 
+                {/* Stok Bilgisi */}
+                <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-4">
+                      <div>
+                        <span className="text-gray-500">Toplam:</span>
+                        <span className="font-medium text-gray-900 ml-1">{item.total_quantity}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Müsait:</span>
+                        <span className={`font-medium ml-1 ${
+                          item.available_quantity === 0 ? 'text-red-600' : 
+                          item.available_quantity <= (item.min_stock_level || 0) ? 'text-yellow-600' : 
+                          'text-green-600'
+                        }`}>
+                          {item.available_quantity}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Atanmış:</span>
+                        <span className="font-medium text-blue-600 ml-1">{item.assigned_quantity}</span>
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-400">{item.unit_type}</span>
+                  </div>
+                  
+                  {/* Stok Durumu Çubuğu */}
+                  <div className="mt-2">
+                    <div className="flex text-xs text-gray-500 mb-1">
+                      <span>Stok Durumu</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${
+                          item.available_quantity === 0 ? 'bg-red-500' : 
+                          item.available_quantity <= (item.min_stock_level || 0) ? 'bg-yellow-500' : 
+                          'bg-green-500'
+                        }`}
+                        style={{
+                          width: `${Math.max(5, (item.available_quantity / item.total_quantity) * 100)}%`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+                
                 <div className="space-y-1 text-sm text-gray-600 mb-4">
                   {item.brand && <p><strong>Marka:</strong> {item.brand}</p>}
                   {item.model && <p><strong>Model:</strong> {item.model}</p>}
@@ -441,14 +474,22 @@ export default function InventoryManager({ onToast }: InventoryManagerProps) {
                     </Button>
                   </div>
                   
-                  {item.status === 'available' && (
+                  {item.available_quantity > 0 ? (
                     <Button
                       onClick={() => handleAssignItem(item)}
                       size="sm"
                       className="bg-green-600 hover:bg-green-700 text-white text-xs"
                     >
                       <ArrowRight className="h-3 w-3 mr-1" />
-                      Ata
+                      Ata ({item.available_quantity})
+                    </Button>
+                  ) : (
+                    <Button
+                      disabled
+                      size="sm"
+                      className="bg-gray-400 text-white text-xs cursor-not-allowed"
+                    >
+                      Stok Yok
                     </Button>
                   )}
                 </div>
@@ -569,7 +610,7 @@ export default function InventoryManager({ onToast }: InventoryManagerProps) {
         onToast={onToast}
       />
 
-      <AssignInventoryModal
+      <MultiAssignInventoryModal
         isOpen={showAssignModal}
         onClose={() => setShowAssignModal(false)}
         onSave={handleModalSave}
