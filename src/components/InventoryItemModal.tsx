@@ -143,12 +143,14 @@ export default function InventoryItemModal({
         location: formData.location?.trim() || null,
         notes: formData.notes?.trim() || null,
         total_quantity: formData.total_quantity,
-        available_quantity: item?.id ? undefined : formData.total_quantity, // Sadece yeni eklemede
-        assigned_quantity: item?.id ? undefined : 0, // Sadece yeni eklemede  
         unit_type: formData.unit_type,
         is_consumable: formData.is_consumable,
         min_stock_level: formData.min_stock_level,
-        ...(item?.id ? { id: item.id } : { created_by: user.id })
+        ...(item?.id ? { id: item.id } : { 
+          created_by: user.id,
+          available_quantity: formData.total_quantity,
+          assigned_quantity: 0
+        })
       }
 
       if (item?.id) {

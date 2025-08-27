@@ -178,14 +178,26 @@ export async function PUT(request: NextRequest) {
       purchase_price, 
       status,
       location,
-      notes 
+      notes,
+      total_quantity,
+      unit_type,
+      is_consumable,
+      min_stock_level
     } = body
 
-    console.log('🔧 Inventory API: Envanter öğesi güncelleniyor...', { id, name })
+    console.log('🔧 Inventory API: Envanter öğesi güncelleniyor...', { id, name, total_quantity })
 
     if (!id || !name || !category) {
       return NextResponse.json(
         { error: 'Eksik bilgi: id, name ve category gerekli' },
+        { status: 400 }
+      )
+    }
+
+    // total_quantity kontrolü
+    if (total_quantity !== undefined && total_quantity < 1) {
+      return NextResponse.json(
+        { error: 'Toplam miktar en az 1 olmalıdır' },
         { status: 400 }
       )
     }
@@ -207,23 +219,54 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // Eğer total_quantity güncelleniyor ise, mevcut atama durumunu kontrol et
+    const updateData: any = {
+      name: name.trim(),
+      description: description?.trim() || null,
+      category,
+      brand: brand?.trim() || null,
+      model: model?.trim() || null,
+      serial_number: serial_number?.trim() || null,
+      purchase_date: purchase_date || null,
+      purchase_price: purchase_price || null,
+      status,
+      location: location?.trim() || null,
+      notes: notes?.trim() || null,
+      unit_type: unit_type || 'adet',
+      is_consumable: is_consumable || false,
+      min_stock_level: min_stock_level || 0,
+      updated_at: new Date().toISOString()
+    }
+
+    // Eğer total_quantity güncelleniyorsa, available_quantity'yi de güncelle
+    if (total_quantity !== undefined) {
+      // Mevcut atanmış miktarı al
+      const { data: currentItem } = await supabaseAdmin
+        .from('inventory_items')
+        .select('assigned_quantity')
+        .eq('id', id)
+        .single()
+
+      if (currentItem) {
+        const assignedQty = currentItem.assigned_quantity || 0
+        
+        // Yeni toplam miktar, atanmış miktardan az olamaz
+        if (total_quantity < assignedQty) {
+          return NextResponse.json(
+            { error: `Toplam miktar ${assignedQty} adet atanmış olduğu için ${assignedQty}'den az olamaz` },
+            { status: 400 }
+          )
+        }
+
+        updateData.total_quantity = total_quantity
+        updateData.available_quantity = total_quantity - assignedQty
+      }
+    }
+
     // Envanter öğesini güncelle
     const { data: inventoryData, error: inventoryError } = await supabaseAdmin
       .from('inventory_items')
-      .update({
-        name: name.trim(),
-        description: description?.trim() || null,
-        category,
-        brand: brand?.trim() || null,
-        model: model?.trim() || null,
-        serial_number: serial_number?.trim() || null,
-        purchase_date: purchase_date || null,
-        purchase_price: purchase_price || null,
-        status,
-        location: location?.trim() || null,
-        notes: notes?.trim() || null,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single()

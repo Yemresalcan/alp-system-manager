@@ -30,9 +30,9 @@ export default function AssignInventoryModal({
   onToast 
 }: AssignInventoryModalProps) {
   const [technicians, setTechnicians] = useState<Technician[]>([])
-  const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>([])
+  const [selectedTechnician, setSelectedTechnician] = useState('')
+  const [quantity, setQuantity] = useState(1)
   const [assignmentDate, setAssignmentDate] = useState(new Date().toISOString().split('T')[0])
-  const [quantities, setQuantities] = useState<{[key: string]: number}>({})
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingTechnicians, setLoadingTechnicians] = useState(false)
