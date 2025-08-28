@@ -310,36 +310,13 @@ export default function LoginForm() {
                   )}
                 </button>
                 
-                {/* Demo Accounts */}
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <p className="text-sm font-medium text-gray-700 mb-3 text-center">Demo Hesapları</p>
-                  <div className="grid grid-cols-1 gap-3 text-xs">
-                    <div className={`rounded-lg p-3 border ${theme === 'dark' ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Admin Hesabı</p>
-                          <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>admin@alpsistem.com</p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Şifre:</p>
-                          <p className={`font-mono ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>admin123456</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className={`rounded-lg p-3 border ${theme === 'dark' ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Tekniksyen Hesabı</p>
-                          <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>teknisyen@alpsistem.com</p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Şifre:</p>
-                          <p className={`font-mono ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>teknik123456</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                {/*Alp sistem footer*/}
+                <div>
+                  <p className="text-sm text-center text-gray-500">
+                    &copy; {new Date().getFullYear()} Alp Sistem. Tüm hakları saklıdır.
+                  </p>
                 </div>
+
               </form>
             </div>
           </div>

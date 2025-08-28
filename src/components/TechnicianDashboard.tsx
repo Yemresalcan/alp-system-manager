@@ -122,7 +122,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-xs font-medium text-gray-900">
                   {profile.full_name}
                 </p>
                 <p className="text-xs text-blue-600">Tekniksyen</p>
