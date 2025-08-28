@@ -30,14 +30,33 @@ export interface TechnicianFile {
 export interface Task {
   id: string
   technician_id: string
-  title: string
-  description?: string
-  status: 'pending' | 'in_progress' | 'completed'
-  priority: 'low' | 'medium' | 'high'
-  due_date?: string
-  created_by: string
+  task_type: 'fiber_kurulum' | 'normal_kurulum' | 'fiber_donusum' | 'nakil' | 'diger'
+  service_number: string
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  started_at?: string
+  completed_at?: string
+  notes?: string
+  location?: string
   created_at: string
   updated_at: string
+}
+
+export interface TaskType {
+  id: number
+  name: string
+  description?: string
+  created_at: string
+}
+
+export interface TaskPhoto {
+  id: string
+  task_id: string
+  photo_url: string
+  file_name?: string
+  file_size?: number
+  mime_type?: string
+  description?: string
+  uploaded_at: string
 }
 
 export interface InventoryItem {

@@ -9,6 +9,7 @@ import ModernNavbar from './ModernNavbar'
 import TechnicianManager from './TechnicianManager'
 import TechnicianFileGroups from './TechnicianFileGroups'
 import InventoryManager from './InventoryManager'
+import AdminTaskManager from './AdminTaskManager'
 import { 
   Users, 
   FileText, 
@@ -47,9 +48,9 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
   const menuItems = [
     { id: 'overview', label: 'Genel Bakış', icon: BarChart3, color: 'blue' },
     { id: 'technicians', label: 'Tekniksyenler', icon: Users, color: 'green' },
+    { id: 'tasks', label: 'Görev Yönetimi', icon: CheckSquare, color: 'red' },
     { id: 'files', label: 'Dosya Yönetimi', icon: FileText, color: 'purple' },
-    { id: 'tasks', label: 'Görev Yönetimi', icon: CheckSquare, color: 'orange' },
-    { id: 'inventory', label: 'Envanter', icon: Package, color: 'red' },
+    { id: 'inventory', label: 'Envanter', icon: Package, color: 'orange' },
     { id: 'calendar', label: 'Takvim', icon: Calendar, color: 'indigo' },
   ]
 
@@ -240,23 +241,7 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
               )}
 
               {activeTab === 'tasks' && (
-                <div className={`p-8 rounded-xl ${
-                  theme === 'dark' ? 'bg-slate-800' : 'bg-white'
-                } shadow-sm text-center`}>
-                  <CheckSquare className={`mx-auto h-12 w-12 ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-400'
-                  }`} />
-                  <h3 className={`mt-4 text-lg font-medium ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>
-                    Görev Yönetimi
-                  </h3>
-                  <p className={`mt-2 ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                    Görev yönetim sistemi yakında gelecek!
-                  </p>
-                </div>
+                <AdminTaskManager onToast={handleToast} />
               )}
 
               {activeTab === 'calendar' && (
