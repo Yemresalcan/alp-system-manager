@@ -21,7 +21,9 @@ import {
   Plus,
   Calendar,
   Clock,
-  Target
+  Target,
+  Menu,
+  X
 } from 'lucide-react'
 
 interface TechnicianDashboardProps {
@@ -40,6 +42,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [showTaskWizard, setShowTaskWizard] = useState(false)
   const [todayTaskCount, setTodayTaskCount] = useState(0)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [profileData, setProfileData] = useState({
     full_name: profile.full_name || '',
     phone: profile.phone || ''
@@ -122,42 +125,94 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
     <div className={`min-h-screen transition-colors duration-300 ${
       theme === 'dark' ? 'bg-slate-900' : 'bg-gray-50'
     }`}>
-      {/* Modern Navbar */}
-      <ModernNavbar 
-        user={user} 
-        profile={profile} 
-        title="Tekniksyen Panel"
-        showThemeToggle={true}
-        onThemeToggle={toggleTheme}
-        theme={theme}
-      />
-
-      <div className="flex">
-        {/* Modern Sidebar */}
-        <div className={`w-72 min-h-screen sticky top-16 transition-all duration-300 ${
+      {/* Modern Navbar - Sticky */}
+      <div className="sticky top-0 z-40">
+        <ModernNavbar 
+          user={user} 
+          profile={profile} 
+          title="Tekniksyen Panel"
+          showThemeToggle={true}
+          onThemeToggle={toggleTheme}
+          theme={theme}
+        />
+        
+        {/* Mobile Header with Menu Button */}
+        <div className={`lg:hidden flex items-center justify-between p-4 border-b ${
           theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
-        } border-r shadow-sm`}>
-          <div className="p-6">
+        }`}>
+          <button
+            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            className={`p-2 rounded-lg ${
+              theme === 'dark' 
+                ? 'text-gray-300 hover:bg-slate-700' 
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            {isMobileSidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+          <h1 className={`text-lg font-semibold ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            {menuItems.find(item => item.id === activeTab)?.label || 'Dashboard'}
+          </h1>
+          <div className="w-8"></div> {/* Spacer for centering */}
+        </div>
+      </div>
+
+      <div className="flex relative">
+        {/* Mobile Sidebar Overlay */}
+        {isMobileSidebarOpen && (
+          <div 
+            className="fixed inset-0 z-30 bg-black bg-opacity-50 lg:hidden"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar - Mobile Slide-in */}
+        <div className={`
+          ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          fixed lg:static inset-y-0 left-0 z-40 w-80 lg:w-72
+          transition-transform duration-300 ease-in-out
+          ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}
+          border-r shadow-lg lg:shadow-sm
+        `}>
+          <div className="p-4 lg:p-6 pt-6">
+            {/* Mobile Close Button */}
+            <div className="lg:hidden flex justify-end mb-4">
+              <button
+                onClick={() => setIsMobileSidebarOpen(false)}
+                className={`p-2 rounded-lg ${
+                  theme === 'dark' 
+                    ? 'text-gray-300 hover:bg-slate-700' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Profile Section */}
             <div className={`mb-6 p-4 rounded-xl ${
               theme === 'dark' ? 'bg-slate-700/50' : 'bg-green-50'
             }`}>
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">
+                <div className="w-10 h-10 lg:w-12 lg:h-12 bg-green-600 rounded-xl flex items-center justify-center">
+                  <span className="text-white font-bold text-base lg:text-lg">
                     {profile.full_name?.charAt(0).toUpperCase() || 'T'}
                   </span>
                 </div>
                 <div>
-                  <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  <h3 className={`font-semibold text-sm lg:text-base ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                     {profile.full_name}
                   </h3>
-                  <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p className={`text-xs lg:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                     Tekniksyen
                   </p>
                 </div>
               </div>
             </div>
 
+            {/* Navigation Menu */}
             <nav className="space-y-2">
               {menuItems.map((item) => {
                 const Icon = item.icon
@@ -166,7 +221,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                   <button
                     key={item.id}
                     onClick={() => handleTabChange(item.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                    className={`w-full flex items-center space-x-3 px-3 lg:px-4 py-3 rounded-xl transition-all duration-200 ${
                       isActive
                         ? theme === 'dark'
                           ? 'bg-green-600 text-white shadow-lg'
@@ -177,7 +232,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                     }`}
                   >
                     <Icon className={`h-5 w-5 ${isActive ? 'text-white' : ''}`} />
-                    <span className="font-medium">{item.label}</span>
+                    <span className="font-medium text-sm lg:text-base">{item.label}</span>
                     {isActive && (
                       <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse" />
                     )}
@@ -189,22 +244,22 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
         </div>
 
         {/* Main Content */}
-        <div className={`flex-1 transition-colors duration-300 ${
+        <div className={`flex-1 transition-colors duration-300 min-h-screen ${
           theme === 'dark' ? 'bg-slate-900' : 'bg-gray-50'
         }`}>
-          <div className="p-8">
+          <div className="p-4 lg:p-8">
             {/* Content Header */}
-            <div className={`mb-8 p-6 rounded-xl ${
+            <div className={`mb-6 lg:mb-8 p-4 lg:p-6 rounded-xl ${
               theme === 'dark' ? 'bg-slate-800' : 'bg-white'
             } shadow-sm`}>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
                 <div>
-                  <h2 className={`text-2xl font-bold ${
+                  <h2 className={`text-xl lg:text-2xl font-bold ${
                     theme === 'dark' ? 'text-white' : 'text-gray-900'
                   }`}>
                     {menuItems.find(item => item.id === activeTab)?.label || 'Dashboard'}
                   </h2>
-                  <p className={`mt-1 ${
+                  <p className={`mt-1 text-sm lg:text-base ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                   }`}>
                     {activeTab === 'profile' && 'Profil bilgilerinizi güncelleyin'}
@@ -215,10 +270,10 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                     {activeTab === 'overview' && 'Genel durum ve istatistikler'}
                   </p>
                 </div>
-                <div className={`px-4 py-2 rounded-lg ${
+                <div className={`px-3 lg:px-4 py-2 rounded-lg ${
                   theme === 'dark' ? 'bg-green-600' : 'bg-green-100'
                 }`}>
-                  <span className={`text-sm font-medium ${
+                  <span className={`text-xs lg:text-sm font-medium ${
                     theme === 'dark' ? 'text-white' : 'text-green-700'
                   }`}>
                     {new Date().toLocaleDateString('tr-TR', { 
