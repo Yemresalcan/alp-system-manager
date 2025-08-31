@@ -1,94 +1,57 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { User } from '@supabase/supabase-js'
-import { getUserProfile } from '@/lib/auth'
-import { Profile } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import LoginForm from '@/components/LoginForm'
 import Dashboard from '@/components/Dashboard'
 
 export default function Home() {
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, profile, isLoading, isAuthenticated, refresh } = useAuth()
 
+  // Auth state değişikliklerini dinle
   useEffect(() => {
-    let mounted = true
-
-    const initAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        if (!mounted) return
-
-        if (session?.user) {
-          setUser(session.user)
-          const userProfile = await getUserProfile(session.user.id)
-          if (mounted) {
-            setProfile(userProfile)
-          }
-        } else {
-          setUser(null)
-          setProfile(null)
-        }
-      } catch (error) {
-        console.error('Auth error:', error)
-      } finally {
-        if (mounted) {
-          setLoading(false)
-        }
-      }
-    }
-
-    initAuth()
-
-    // Auth state değişikliklerini dinle
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email)
+      console.log('🔄 Auth state değişti:', event, session?.user?.email)
       
-      if (!mounted) return
-
-      if (session?.user) {
-        setUser(session.user)
-        try {
-          const userProfile = await getUserProfile(session.user.id)
-          if (mounted) {
-            setProfile(userProfile)
-          }
-        } catch (error) {
-          console.error('Profile fetch error:', error)
-        }
-      } else {
-        setUser(null)
-        setProfile(null)
-      }
-
-      if (mounted) {
-        setLoading(false)
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        // Cache'i yenile
+        refresh()
       }
     })
 
     return () => {
-      mounted = false
       subscription.unsubscribe()
     }
-  }, [])
+  }, [refresh])
 
-  if (loading) {
+  // Loading ekranı - cached verilerle daha hızlı
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
+        <div className="text-center max-w-md mx-auto p-6">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Yükleniyor...</p>
+          <p className="text-gray-600 mb-2 font-medium">Giriş kontrol ediliyor...</p>
+          <p className="text-sm text-gray-500 mb-4">
+          
+                    </p>
+          
+          {/* Progress bar */}
+          <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+            <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{width: '80%'}}></div>
+          </div>
+          
+          <p className="text-xs text-gray-400">
+            
+          </p>
         </div>
       </div>
     )
   }
 
-  if (!user || !profile) {
+  if (!isAuthenticated) {
     return <LoginForm />
   }
 
-  return <Dashboard user={user} profile={profile} />
+  return <Dashboard user={user!} profile={profile!} />
 }

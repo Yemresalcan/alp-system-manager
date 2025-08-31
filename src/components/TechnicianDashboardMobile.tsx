@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import { User } from '@supabase/supabase-js'
 import { Profile, supabase } from '@/lib/supabase'
+import { taskAPI } from '@/lib/api-client'
 import { useToast } from '@/hooks/useToast'
 import { ToastContainer } from '@/components/ui/toast'
 import ModernNavbar from './ModernNavbar'
@@ -69,12 +70,14 @@ export default function TechnicianDashboardMobile({ user, profile }: TechnicianD
     try {
       setIsLoading(true)
       const today = new Date().toISOString().split('T')[0]
-      const response = await fetch(`/api/tasks?technician_id=${user.id}&date=${today}`)
       
-      if (response.ok) {
-        const result = await response.json()
-        setTodayTaskCount(result.data?.length || 0)
-      }
+      // Yeni API client kullan
+      const result = await taskAPI.getTasks({
+        technician_id: user.id,
+        date: today
+      })
+      
+      setTodayTaskCount(result.data?.length || 0)
     } catch (error) {
       console.error('Günlük görev sayısı yüklenirken hata:', error)
     } finally {

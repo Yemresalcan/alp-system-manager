@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { Profile, supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/useToast'
+import { useTodayTaskCount, useTasks } from '@/hooks/useTasks'
 import { ToastContainer } from '@/components/ui/toast'
 import ModernNavbar from './ModernNavbar'
 import FileUploadManager from './FileUploadManager'
@@ -41,10 +42,15 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [showTaskWizard, setShowTaskWizard] = useState(false)
-  const [todayTaskCount, setTodayTaskCount] = useState(0)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-  const [isLoadingData, setIsLoadingData] = useState(true)
   const [isOnline, setIsOnline] = useState(true)
+  
+  // Cached hooks
+  const { 
+    data: todayTaskCount = 0, 
+    isLoading: isLoadingTaskCount,
+    refetch: refetchTaskCount 
+  } = useTodayTaskCount(user.id)
   const [profileData, setProfileData] = useState({
     full_name: profile.full_name || '',
     phone: profile.phone || ''
@@ -60,76 +66,19 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
     }
   }
 
-  // Günlük görev sayısını yükle
-  const loadTodayTaskCount = async () => {
-    console.log('🔄 loadTodayTaskCount başladı...')
-    try {
-      setIsLoadingData(true)
-      const today = new Date().toISOString().split('T')[0]
-      console.log('📅 Bugünün tarihi:', today)
-      
-      // Önce API'yi deneyelim
-      try {
-        console.log('🌐 API çağrısı yapılıyor...')
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 8000)
-        
-        const response = await fetch(`/api/tasks?technician_id=${user.id}&date=${today}`, {
-          signal: controller.signal
-        })
-        
-        clearTimeout(timeoutId)
-        console.log('✅ API response:', response.status)
-        
-        if (response.ok) {
-          const result = await response.json()
-          console.log('📊 API result:', result)
-          setTodayTaskCount(result.data?.length || 0)
-          console.log('✅ loadTodayTaskCount tamamlandı (API)')
-          return
-        }
-      } catch (apiError) {
-        console.warn('⚠️ API call failed, trying direct Supabase:', apiError)
-      }
-      
-      // API başarısız olursa direct Supabase
-      console.log('🔗 Supabase direct call yapılıyor...')
-      const { count, error } = await supabase
-        .from('tasks')
-        .select('*', { count: 'exact', head: true })
-        .eq('technician_id', user.id)
-        .gte('created_at', `${today}T00:00:00`)
-        .lte('created_at', `${today}T23:59:59`)
-
-      if (error) {
-        console.error('❌ Supabase error:', error)
-        setTodayTaskCount(0)
-      } else {
-        console.log('📊 Supabase count:', count)
-        setTodayTaskCount(count || 0)
-        console.log('✅ loadTodayTaskCount tamamlandı (Supabase)')
-      }
-      
-    } catch (error) {
-      console.error('❌ Günlük görev sayısı yüklenirken hata:', error)
-      setTodayTaskCount(0)
-      handleToast('error', 'Bağlantı Hatası', 'Veriler yüklenirken sorun oluştu')
-    } finally {
-      console.log('🏁 loadTodayTaskCount finally bloğu')
-      setIsLoadingData(false)
-    }
-  }
-
+  // Refresh trigger için effect
   useEffect(() => {
-    loadTodayTaskCount()
-  }, [user.id, refreshTrigger])
+    if (refreshTrigger > 0) {
+      refetchTaskCount()
+    }
+  }, [refreshTrigger, refetchTaskCount])
 
   // Online/offline durumunu takip et
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true)
-      // Online olunca verileri yenile
-      loadTodayTaskCount()
+      // Online olunca cached verileri yenile
+      refetchTaskCount()
     }
     const handleOffline = () => setIsOnline(false)
 
@@ -140,7 +89,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
-  }, [])
+  }, [refetchTaskCount])
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light')
@@ -186,26 +135,33 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
     { id: 'inventory', label: 'Envanterim', icon: Package, color: 'indigo' },
   ]
 
-  // Ana loading state'i kontrol et
-  if (isLoadingData) {
+  // Ana loading state'i kontrol et - cached data ile daha hızlı
+  if (isLoadingTaskCount && todayTaskCount === 0) {
     return (
       <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${
         theme === 'dark' ? 'bg-slate-900' : 'bg-gray-50'
       }`}>
-        <div className="text-center">
-          <div className={`inline-block animate-spin rounded-full h-12 w-12 border-b-2 ${
+        <div className="text-center max-w-sm mx-auto p-6">
+          <div className={`inline-block animate-spin rounded-full h-10 w-10 border-b-2 ${
             theme === 'dark' ? 'border-green-400' : 'border-green-600'
           }`}></div>
-          <p className={`mt-4 text-lg font-medium ${
+          <p className={`mt-4 text-base font-medium ${
             theme === 'dark' ? 'text-white' : 'text-gray-900'
           }`}>
-            Veriler yükleniyor...
+            Dashboard hazırlanıyor...
           </p>
           <p className={`mt-2 text-sm ${
             theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
           }`}>
-            Lütfen bekleyin, bu işlem birkaç saniye sürebilir
+           
           </p>
+          
+          {/* Mini progress indicator */}
+          <div className="mt-4 w-full bg-gray-200 rounded-full h-1">
+            <div className={`h-1 rounded-full animate-pulse ${
+              theme === 'dark' ? 'bg-green-400' : 'bg-green-600'
+            }`} style={{width: '90%'}}></div>
+          </div>
         </div>
       </div>
     )
@@ -598,7 +554,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
             onComplete={() => {
               setShowTaskWizard(false)
               setRefreshTrigger(prev => prev + 1)
-              loadTodayTaskCount()
+              refetchTaskCount()
             }}
             onCancel={() => setShowTaskWizard(false)}
             onToast={handleToast}
@@ -617,34 +573,16 @@ interface TechnicianTaskListProps {
 }
 
 function TechnicianTaskList({ userId, theme, onRefresh }: TechnicianTaskListProps) {
-  const [tasks, setTasks] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { 
+    data: tasks = [], 
+    isLoading: loading, 
+    refetch: refetchTasks 
+  } = useTasks(userId)
 
+  // Refresh trigger
   useEffect(() => {
-    fetchTasks()
-  }, [userId])
-
-  const fetchTasks = async () => {
-    try {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('technician_id', userId)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        console.error('Görevler yüklenirken hata:', error)
-        return
-      }
-
-      setTasks(data || [])
-    } catch (error) {
-      console.error('Görevler yüklenirken hata:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+    refetchTasks()
+  }, [onRefresh, refetchTasks])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -685,7 +623,7 @@ function TechnicianTaskList({ userId, theme, onRefresh }: TechnicianTaskListProp
           Görevlerim
         </h3>
         <button
-          onClick={fetchTasks}
+          onClick={() => refetchTasks()}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             theme === 'dark'
               ? 'bg-slate-700 hover:bg-slate-600 text-white'

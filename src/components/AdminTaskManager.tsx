@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { taskAPI } from '@/lib/api-client'
 import { Task, Profile } from '@/lib/supabase'
 import { 
   CheckSquare, 
@@ -119,13 +120,11 @@ export default function AdminTaskManager({ onToast }: AdminTaskManagerProps) {
 
   const loadTasks = async () => {
     try {
-      const response = await fetch(`/api/tasks?date=${selectedDate}`)
+      // Yeni API client kullan
+      const result = await taskAPI.getTasks({
+        date: selectedDate
+      })
       
-      if (!response.ok) {
-        throw new Error('Görevler yüklenemedi')
-      }
-
-      const result = await response.json()
       const tasksData = result.data || []
       
       setTasks(tasksData)

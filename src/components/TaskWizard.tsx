@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { taskAPI } from '@/lib/api-client'
 import { Task, TaskType } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { 
@@ -132,28 +133,16 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
         service_number: formData.service_number
       })
 
-      const response = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          technician_id: user.id,
-          task_type: formData.task_type,
-          service_number: formData.service_number.trim(),
-          location: formData.location.trim() || null,
-          notes: formData.notes.trim() || null
-        })
+      // Yeni API client kullan
+      const result = await taskAPI.createTask({
+        technician_id: user.id,
+        task_type: formData.task_type,
+        service_number: formData.service_number.trim(),
+        location: formData.location.trim() || undefined,
+        notes: formData.notes.trim() || undefined
       })
 
-      console.log('API Response status:', response.status)
-      const result = await response.json()
-      console.log('API Response data:', result)
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Görev oluşturulamadı')
-      }
-
+      console.log('Görev oluşturuldu:', result.data)
       setCreatedTask(result.data)
       onToast('success', 'Başarılı', 'Görev oluşturuldu')
 
@@ -257,22 +246,11 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
     try {
       setLoading(true)
 
-      // Görevi tamamlandı olarak işaretle
-      const response = await fetch('/api/tasks', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: createdTask.id,
-          status: 'completed'
-        })
+      // Görevi tamamlandı olarak işaretle - Yeni API client kullan
+      await taskAPI.updateTask({
+        id: createdTask.id,
+        status: 'completed'
       })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Görev tamamlanamadı')
-      }
 
       onToast('success', 'Tebrikler!', 'Görev başarıyla tamamlandı')
       onComplete()

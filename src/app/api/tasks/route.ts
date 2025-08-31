@@ -1,9 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { supabase } from '@/lib/supabase'
+
+// Session kontrolü yapan yardımcı fonksiyon
+async function checkUserSession(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader) {
+      return { error: 'Authorization header eksik', status: 401 }
+    }
+
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    
+    if (error || !user) {
+      return { error: 'Geçersiz token', status: 401 }
+    }
+
+    return { user, error: null, status: 200 }
+  } catch (error) {
+    return { error: 'Session kontrol hatası', status: 500 }
+  }
+}
 
 // Görev oluşturma
 export async function POST(request: NextRequest) {
   try {
+    // Session kontrolü
+    const sessionCheck = await checkUserSession(request)
+    if (sessionCheck.error) {
+      return NextResponse.json(
+        { error: sessionCheck.error },
+        { status: sessionCheck.status }
+      )
+    }
+
     const body = await request.json()
     const { 
       technician_id,
@@ -13,7 +44,15 @@ export async function POST(request: NextRequest) {
       location
     } = body
 
-    console.log('🔧 Tasks API: Yeni görev oluşturuluyor...', { task_type, service_number })
+    console.log('🔧 Tasks API: Yeni görev oluşturuluyor...', { task_type, service_number, user_id: sessionCheck.user?.id })
+
+    // Kullanıcı technician_id ile eşleşiyor mu kontrol et
+    if (sessionCheck.user?.id !== technician_id) {
+      return NextResponse.json(
+        { error: 'Sadece kendi görevlerinizi oluşturabilirsiniz' },
+        { status: 403 }
+      )
+    }
 
     // Zorunlu alanları kontrol et
     if (!technician_id || !task_type || !service_number) {
@@ -109,13 +148,39 @@ export async function POST(request: NextRequest) {
 // Görevleri listeleme
 export async function GET(request: NextRequest) {
   try {
+    // Session kontrolü
+    const sessionCheck = await checkUserSession(request)
+    if (sessionCheck.error) {
+      return NextResponse.json(
+        { error: sessionCheck.error },
+        { status: sessionCheck.status }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const technician_id = searchParams.get('technician_id')
     const status = searchParams.get('status')
     const date = searchParams.get('date')
     const task_type = searchParams.get('task_type')
 
-    console.log('🔧 Tasks API: Görevler listeleniyor...', { technician_id, status, date })
+    console.log('🔧 Tasks API: Görevler listeleniyor...', { technician_id, status, date, user_id: sessionCheck.user?.id })
+
+    // Kullanıcı sadece kendi görevlerini görebilir (admin değilse)
+    if (technician_id && sessionCheck.user?.id !== technician_id) {
+      // Admin kontrolü yapmak için profile tablosunu kontrol edebiliriz
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('role')
+        .eq('id', sessionCheck.user?.id)
+        .single()
+
+      if (profile?.role !== 'admin') {
+        return NextResponse.json(
+          { error: 'Sadece kendi görevlerinizi görebilirsiniz' },
+          { status: 403 }
+        )
+      }
+    }
 
     let query = supabaseAdmin
       .from('tasks')
@@ -173,6 +238,15 @@ export async function GET(request: NextRequest) {
 // Görev güncelleme
 export async function PUT(request: NextRequest) {
   try {
+    // Session kontrolü
+    const sessionCheck = await checkUserSession(request)
+    if (sessionCheck.error) {
+      return NextResponse.json(
+        { error: sessionCheck.error },
+        { status: sessionCheck.status }
+      )
+    }
+
     const body = await request.json()
     const { 
       id,
@@ -183,13 +257,43 @@ export async function PUT(request: NextRequest) {
       completed_at
     } = body
 
-    console.log('🔧 Tasks API: Görev güncelleniyor...', { id, status })
+    console.log('🔧 Tasks API: Görev güncelleniyor...', { id, status, user_id: sessionCheck.user?.id })
 
     if (!id) {
       return NextResponse.json(
         { error: 'Görev ID gerekli' },
         { status: 400 }
       )
+    }
+
+    // Görevin mevcut olup olmadığını ve kullanıcının yetkisi olup olmadığını kontrol et
+    const { data: existingTask } = await supabaseAdmin
+      .from('tasks')
+      .select('technician_id')
+      .eq('id', id)
+      .single()
+
+    if (!existingTask) {
+      return NextResponse.json(
+        { error: 'Görev bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    // Kullanıcı sadece kendi görevlerini güncelleyebilir (admin değilse)
+    if (sessionCheck.user?.id !== existingTask.technician_id) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('role')
+        .eq('id', sessionCheck.user?.id)
+        .single()
+
+      if (profile?.role !== 'admin') {
+        return NextResponse.json(
+          { error: 'Sadece kendi görevlerinizi güncelleyebilirsiniz' },
+          { status: 403 }
+        )
+      }
     }
 
     // Güncelleme verilerini hazırla
@@ -246,15 +350,52 @@ export async function PUT(request: NextRequest) {
 // Görev silme
 export async function DELETE(request: NextRequest) {
   try {
+    // Session kontrolü
+    const sessionCheck = await checkUserSession(request)
+    if (sessionCheck.error) {
+      return NextResponse.json(
+        { error: sessionCheck.error },
+        { status: sessionCheck.status }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
-    console.log('🔧 Tasks API: Görev siliniyor...', { id })
+    console.log('🔧 Tasks API: Görev siliniyor...', { id, user_id: sessionCheck.user?.id })
 
     if (!id) {
       return NextResponse.json(
         { error: 'Görev ID gerekli' },
         { status: 400 }
+      )
+    }
+
+    // Görevin mevcut olup olmadığını ve kullanıcının yetkisi olup olmadığını kontrol et
+    const { data: existingTask } = await supabaseAdmin
+      .from('tasks')
+      .select('technician_id')
+      .eq('id', id)
+      .single()
+
+    if (!existingTask) {
+      return NextResponse.json(
+        { error: 'Görev bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    // Sadece admin görev silebilir
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', sessionCheck.user?.id)
+      .single()
+
+    if (profile?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Görev silme yetkisi sadece admin\'lerde' },
+        { status: 403 }
       )
     }
 

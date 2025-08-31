@@ -11,10 +11,10 @@ import { ToastContainer } from '@/components/ui/toast'
 import FileUploadManager from './FileUploadManager'
 import SimpleFileList from './SimpleFileList'
 import TechnicianInventory from './TechnicianInventory'
-import { 
-  User as UserIcon, 
-  FileText, 
-  CheckSquare, 
+import {
+  User as UserIcon,
+  FileText,
+  CheckSquare,
   Upload,
   LogOut,
   Settings,
@@ -63,7 +63,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
   // Profil güncelleme
   const handleProfileUpdate = async () => {
     setIsUpdatingProfile(true)
-    
+
     try {
       const { error } = await supabase
         .from('profiles')
@@ -76,12 +76,12 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
       if (error) throw error
 
       handleToast('success', 'Profil Güncellendi', 'Bilgileriniz başarıyla güncellendi')
-      
+
       // Sayfayı yenile ki güncel bilgiler gözüksün
       setTimeout(() => {
         window.location.reload()
       }, 1000)
-      
+
     } catch (error: any) {
       console.error('Profil güncelleme hatası:', error)
       handleToast('error', 'Güncelleme Hatası', 'Profil güncellenemedi')
@@ -152,11 +152,10 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                   <button
                     key={item.id}
                     onClick={() => handleTabChange(item.id)}
-                    className={`w-full flex items-center px-4 py-3 mt-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                      activeTab === item.id
-                        ? 'bg-gray-900 text-white shadow-lg'
-                        : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-                    }`}
+                    className={`w-full flex items-center px-4 py-3 mt-2 text-sm font-medium rounded-lg transition-all duration-200 ${activeTab === item.id
+                      ? 'bg-gray-900 text-white shadow-lg'
+                      : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
+                      }`}
                   >
                     <Icon className="h-5 w-5 mr-3" />
                     {item.label}
@@ -176,7 +175,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                   <h2 className="text-3xl font-bold text-gray-900">Profil Bilgileri</h2>
                   <p className="text-gray-600 mt-1">Kişisel bilgilerinizi güncelleyin</p>
                 </div>
-                
+
                 <div className="bg-white shadow-sm rounded-lg p-8 border border-gray-200">
                   {/* Profile Header */}
                   <div className="flex items-center mb-8 pb-6 border-b border-gray-200">
@@ -198,7 +197,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                       <input
                         type="text"
                         value={profileData.full_name}
-                        onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
+                        onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
                         className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         placeholder="Adınızı ve soyadınızı girin"
                       />
@@ -222,13 +221,13 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                       <input
                         type="tel"
                         value={profileData.phone}
-                        onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
+                        onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                         className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         placeholder="Telefon numarası ekleyin"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <Button 
+                      <Button
                         onClick={handleProfileUpdate}
                         disabled={isUpdatingProfile}
                         className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-all duration-200 disabled:opacity-50"
@@ -241,22 +240,22 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
               </div>
             )}
 
-                                {activeTab === 'files' && (
-                      <div>
-                        <div className="mb-8">
-                          <h2 className="text-3xl font-bold text-gray-900">Dosyalarım</h2>
-                          <p className="text-gray-600 mt-1">Size ait dosyaları görüntüleyin ve yönetin</p>
-                        </div>
-                        <div className="bg-white shadow-sm rounded-lg p-8 border border-gray-200">
-                          <SimpleFileList
-                            technicianId={profile.id}
-                            showTechnicianName={false}
-                            onToast={handleToast}
-                            refreshTrigger={refreshTrigger}
-                          />
-                        </div>
-                      </div>
-                    )}
+            {activeTab === 'files' && (
+              <div>
+                <div className="mb-8">
+                  <h2 className="text-3xl font-bold text-gray-900">Dosyalarım</h2>
+                  <p className="text-gray-600 mt-1">Size ait dosyaları görüntüleyin ve yönetin</p>
+                </div>
+                <div className="bg-white shadow-sm rounded-lg p-8 border border-gray-200">
+                  <SimpleFileList
+                    technicianId={profile.id}
+                    showTechnicianName={false}
+                    onToast={handleToast}
+                    refreshTrigger={refreshTrigger}
+                  />
+                </div>
+              </div>
+            )}
 
             {activeTab === 'tasks' && (
               <div>
@@ -288,7 +287,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                   <p className="text-gray-600 mt-1">Size atanan envanter öğeleri</p>
                 </div>
                 <div className="bg-white shadow-sm rounded-lg border border-gray-200">
-                  <TechnicianInventory 
+                  <TechnicianInventory
                     technicianId={user.id}
                     onToast={handleToast}
                   />
@@ -296,21 +295,21 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
               </div>
             )}
 
-                                  {activeTab === 'upload' && (
-                        <div>
-                          <div className="mb-8">
-                            <h2 className="text-3xl font-bold text-gray-900">Dosya Yükle</h2>
-                            <p className="text-gray-600 mt-1">Yeni dosyalar yükleyin</p>
-                          </div>
-                          <div className="bg-white shadow-sm rounded-lg p-8 border border-gray-200">
-                            <FileUploadManager
-                              technicianId={profile.id}
-                              onSuccess={handleFileSuccess}
-                              onToast={handleToast}
-                            />
-                          </div>
-                        </div>
-                      )}
+            {activeTab === 'upload' && (
+              <div>
+                <div className="mb-8">
+                  <h2 className="text-3xl font-bold text-gray-900">Dosya Yükle</h2>
+                  <p className="text-gray-600 mt-1">Yeni dosyalar yükleyin</p>
+                </div>
+                <div className="bg-white shadow-sm rounded-lg p-8 border border-gray-200">
+                  <FileUploadManager
+                    technicianId={profile.id}
+                    onSuccess={handleFileSuccess}
+                    onToast={handleToast}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
