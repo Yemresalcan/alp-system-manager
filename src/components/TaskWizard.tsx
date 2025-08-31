@@ -5,11 +5,11 @@ import { supabase } from '@/lib/supabase'
 import { taskAPI } from '@/lib/api-client'
 import { Task, TaskType } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  CheckCircle, 
-  Camera, 
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle,
+  Camera,
   Upload,
   MapPin,
   Wrench,
@@ -55,37 +55,37 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
 
   // Görev tipleri
   const taskTypes = [
-    { 
-      value: 'fiber_kurulum', 
-      label: 'Fiber Kurulum', 
+    {
+      value: 'fiber_kurulum',
+      label: 'Fiber Kurulum',
       icon: <Cable className="h-8 w-8" />,
       color: 'bg-blue-500',
       description: 'Fiber internet bağlantısı kurulumu'
     },
-    { 
-      value: 'normal_kurulum', 
-      label: 'Normal Kurulum', 
+    {
+      value: 'normal_kurulum',
+      label: 'Normal Kurulum',
       icon: <Wifi className="h-8 w-8" />,
       color: 'bg-green-500',
       description: 'Standart internet bağlantısı kurulumu'
     },
-    { 
-      value: 'fiber_donusum', 
-      label: 'Fiber Dönüşüm', 
+    {
+      value: 'fiber_donusum',
+      label: 'Fiber Dönüşüm',
       icon: <Wrench className="h-8 w-8" />,
       color: 'bg-purple-500',
       description: 'Mevcut bağlantının fiber\'e dönüştürülmesi'
     },
-    { 
-      value: 'nakil', 
-      label: 'Nakil', 
+    {
+      value: 'nakil',
+      label: 'Nakil',
       icon: <Truck className="h-8 w-8" />,
       color: 'bg-orange-500',
       description: 'Bağlantının başka adrese taşınması'
     },
-    { 
-      value: 'diger', 
-      label: 'Diğer', 
+    {
+      value: 'diger',
+      label: 'Diğer',
       icon: <MoreHorizontal className="h-8 w-8" />,
       color: 'bg-gray-500',
       description: 'Diğer işlemler'
@@ -104,7 +104,7 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
         onToast('error', 'Hata', 'Lütfen hizmet numarasını girin')
         return
       }
-      
+
       // Görev oluştur
       await createTask()
       setCurrentStep(3)
@@ -149,7 +149,7 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
     } catch (error: any) {
       console.error('Görev oluşturma hatası:', error)
       onToast('error', 'Hata', error.message || 'Görev oluşturulamadı')
-      
+
       // Hata durumunda geri dön
       setCurrentStep(2)
     } finally {
@@ -157,11 +157,28 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
     }
   }
 
-  const handlePhotoUpload = async (files: FileList) => {
-    if (!createdTask) return
+  const handlePhotoUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) {
+      console.log('❌ Dosya seçilmedi')
+      return
+    }
 
+    if (!createdTask) {
+      onToast('error', 'Hata', 'Önce görev oluşturulmalı')
+      return
+    }
+
+    console.log('📸 Fotoğraf yükleme başladı:', files.length, 'dosya')
     const newPhotos = Array.from(files)
-    
+
+    // Dosya tipi kontrolü
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    const invalidFiles = newPhotos.filter(photo => !validTypes.includes(photo.type))
+    if (invalidFiles.length > 0) {
+      onToast('error', 'Geçersiz Dosya Tipi', 'Sadece JPG, PNG ve WebP dosyaları desteklenir')
+      return
+    }
+
     // Dosya boyutu kontrolü (5MB limit)
     const maxSize = 5 * 1024 * 1024 // 5MB
     const oversizedFiles = newPhotos.filter(photo => photo.size > maxSize)
@@ -172,14 +189,14 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
 
     // Toplam fotoğraf sayısı kontrolü (max 10)
     if (formData.photos.length + newPhotos.length > 10) {
-      onToast('error', 'Çok Fazla Fotoğraf', `En fazla 10 fotoğraf yükleyebilirsiniz`)
+      onToast('error', 'Çok Fazla Fotoğraf', `En fazla 10 fotoğraf yükleyebilirsiniz (Şu an: ${formData.photos.length})`)
       return
     }
-    
-    // Duplicate kontrolü - dosya adı ve boyutuna göre
-    const existingPhotoKeys = formData.photos.map(photo => `${photo.name}-${photo.size}`)
+
+    // Duplicate kontrolü - daha güvenilir yöntem
+    const existingPhotoKeys = formData.photos.map(photo => `${photo.name}-${photo.size}-${photo.lastModified}`)
     const uniqueNewPhotos = newPhotos.filter(newPhoto => {
-      const photoKey = `${newPhoto.name}-${newPhoto.size}`
+      const photoKey = `${newPhoto.name}-${newPhoto.size}-${newPhoto.lastModified}`
       return !existingPhotoKeys.includes(photoKey)
     })
 
@@ -188,33 +205,49 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
       return
     }
 
-    // Benzersiz fotoğrafları state'e ekle
-    setFormData(prev => ({ ...prev, photos: [...prev.photos, ...uniqueNewPhotos] }))
+    console.log('✅ Geçerli fotoğraflar:', uniqueNewPhotos.length)
 
-    // Fotoğrafları yükle
+    // Önce state'e ekle (UI için)
+    setFormData(prev => ({
+      ...prev,
+      photos: [...prev.photos, ...uniqueNewPhotos]
+    }))
+
+    // Fotoğrafları tek tek yükle
+    let successCount = 0
+    let failedPhotos: File[] = []
+
     for (const file of uniqueNewPhotos) {
       try {
+        console.log('📤 Yükleniyor:', file.name, file.size, 'bytes')
+
         const formDataUpload = new FormData()
         formDataUpload.append('task_id', createdTask.id)
         formDataUpload.append('file', file)
-        formDataUpload.append('description', `Görev fotoğrafı - ${new Date().toLocaleTimeString()}`)
+        formDataUpload.append('description', `Görev fotoğrafı - ${new Date().toLocaleString('tr-TR')}`)
 
         const response = await fetch('/api/tasks/photos', {
           method: 'POST',
-          body: formDataUpload
+          body: formDataUpload,
+          headers: {
+            // Content-Type'ı FormData için otomatik ayarlanır
+          }
         })
 
         if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || 'Fotoğraf yüklenemedi')
+          const errorData = await response.json().catch(() => ({ error: 'Bilinmeyen hata' }))
+          throw new Error(errorData.error || `HTTP ${response.status}`)
         }
 
-        onToast('success', 'Başarılı', `${file.name} yüklendi`)
+        const result = await response.json()
+        console.log('✅ Yüklendi:', file.name, result)
+        successCount++
+
       } catch (error: any) {
-        console.error('Fotoğraf yükleme hatası:', error)
-        onToast('error', 'Hata', `${file.name} yüklenemedi: ${error.message}`)
-        
-        // Hata durumunda fotoğrafı state'den kaldır
+        console.error('❌ Fotoğraf yükleme hatası:', file.name, error)
+        failedPhotos.push(file)
+
+        // Başarısız fotoğrafı state'den kaldır
         setFormData(prev => ({
           ...prev,
           photos: prev.photos.filter(photo => photo !== file)
@@ -222,21 +255,55 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
       }
     }
 
-    // Input'ları temizle (önemli!)
-    const cameraInput = document.getElementById('camera-capture') as HTMLInputElement
-    const uploadInput = document.getElementById('photo-upload') as HTMLInputElement
-    if (cameraInput) cameraInput.value = ''
-    if (uploadInput) uploadInput.value = ''
+    // Sonuç bildirimi
+    if (successCount > 0) {
+      onToast('success', 'Başarılı', `${successCount} fotoğraf yüklendi`)
+    }
+
+    if (failedPhotos.length > 0) {
+      onToast('error', 'Kısmi Hata', `${failedPhotos.length} fotoğraf yüklenemedi`)
+    }
+
+    // Input'ları temizle (çok önemli!)
+    setTimeout(() => {
+      try {
+        const cameraInput = document.getElementById('camera-capture') as HTMLInputElement
+        const uploadInput = document.getElementById('photo-upload') as HTMLInputElement
+
+        if (cameraInput) {
+          cameraInput.value = ''
+          cameraInput.files = null
+          console.log('🧹 Kamera input temizlendi')
+        }
+
+        if (uploadInput) {
+          uploadInput.value = ''
+          uploadInput.files = null
+          console.log('🧹 Upload input temizlendi')
+        }
+      } catch (error) {
+        console.warn('Input temizleme hatası:', error)
+      }
+    }, 200)
   }
 
   const handlePhotoDelete = (index: number) => {
     const photoToDelete = formData.photos[index]
+    if (!photoToDelete) return
+
+    console.log('🗑️ Fotoğraf siliniyor:', photoToDelete.name)
+
     const newPhotos = formData.photos.filter((_, i) => i !== index)
     setFormData(prev => ({ ...prev, photos: newPhotos }))
-    
-    // URL'yi serbest bırak (memory leak'i önlemek için)
-    URL.revokeObjectURL(URL.createObjectURL(photoToDelete))
-    
+
+    // Memory leak'i önlemek için object URL'yi temizle
+    try {
+      const objectUrl = URL.createObjectURL(photoToDelete)
+      URL.revokeObjectURL(objectUrl)
+    } catch (error) {
+      console.warn('Object URL temizlenemedi:', error)
+    }
+
     onToast('success', 'Fotoğraf Silindi', `${photoToDelete.name} kaldırıldı`)
   }
 
@@ -267,11 +334,11 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Background Overlay */}
       <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onCancel} />
-      
+
       {/* Modal Content */}
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-          
+
           {/* Header */}
           <div className="bg-white border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
@@ -292,11 +359,10 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
                 {[1, 2, 3].map((step) => (
                   <div
                     key={step}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                      step <= currentStep
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step <= currentStep
                         ? 'bg-green-600 text-white'
                         : 'bg-gray-200 text-gray-500'
-                    }`}
+                      }`}
                   >
                     {step < currentStep ? (
                       <CheckCircle className="h-4 w-4" />
@@ -313,7 +379,7 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
           <div className="overflow-y-auto max-h-[calc(90vh-160px)]">
             <div className="p-6">
               <div className="max-w-2xl mx-auto space-y-6">
-          
+
                 {/* Step 1: İş Tipi Seçimi */}
                 {currentStep === 1 && (
                   <div className="text-center">
@@ -330,11 +396,10 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
                         <button
                           key={type.value}
                           onClick={() => setFormData({ ...formData, task_type: type.value })}
-                          className={`p-6 rounded-lg border-2 transition-all ${
-                            formData.task_type === type.value
+                          className={`p-6 rounded-lg border-2 transition-all ${formData.task_type === type.value
                               ? 'border-green-500 bg-green-50'
                               : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                            }`}
                         >
                           <div className={`w-16 h-16 rounded-lg ${type.color} flex items-center justify-center mx-auto mb-4 text-white`}>
                             {type.icon}
@@ -418,73 +483,159 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
                     </p>
 
                     {/* Fotoğraf Yükleme Seçenekleri */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                      {/* Kamera ile Çek */}
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                        <input
-                          type="file"
-                          id="camera-capture"
-                          accept="image/*"
-                          capture="environment"
-                          onChange={(e) => e.target.files && handlePhotoUpload(e.target.files)}
-                          className="hidden"
-                        />
-                        <label htmlFor="camera-capture" className="cursor-pointer block">
-                          <Camera className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                          <p className="text-lg font-medium text-gray-900 mb-2">
-                            Kamera ile Çek
-                          </p>
-                          <p className="text-gray-600">
-                            Cihazın kamerasını kullan
-                          </p>
-                        </label>
-                      </div>
+                    <div className="space-y-4 mb-6">
+                      {/* Hidden inputs */}
+                      <input
+                        type="file"
+                        id="camera-capture"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => {
+                          console.log('📸 Kamera input değişti:', e.target.files?.length)
+                          if (e.target.files && e.target.files.length > 0) {
+                            handlePhotoUpload(e.target.files)
+                          }
+                        }}
+                        className="hidden"
+                        key={`camera-${formData.photos.length}`}
+                      />
 
-                      {/* Galeri/Dosyadan Seç */}
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                        <input
-                          type="file"
-                          id="photo-upload"
-                          multiple
-                          accept="image/*"
-                          onChange={(e) => e.target.files && handlePhotoUpload(e.target.files)}
-                          className="hidden"
-                        />
-                        <label htmlFor="photo-upload" className="cursor-pointer block">
-                          <Upload className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                          <p className="text-lg font-medium text-gray-900 mb-2">
-                            Dosyadan Seç
-                          </p>
-                          <p className="text-gray-600">
-                            Galeriden birden fazla seç
-                          </p>
-                        </label>
-                      </div>
+                      <input
+                        type="file"
+                        id="photo-upload"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => {
+                          console.log('📁 Galeri input değişti:', e.target.files?.length)
+                          if (e.target.files && e.target.files.length > 0) {
+                            handlePhotoUpload(e.target.files)
+                          }
+                        }}
+                        className="hidden"
+                        key={`upload-${formData.photos.length}`}
+                      />
+
+                      {/* Kamera Butonu */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          console.log('📸 Kamera butonu tıklandı')
+                          const input = document.getElementById('camera-capture') as HTMLInputElement
+                          if (input) {
+                            input.click()
+                          }
+                        }}
+                        onTouchEnd={(e) => {
+                          e.preventDefault()
+                          console.log('📸 Kamera butonu touch edildi')
+                          const input = document.getElementById('camera-capture') as HTMLInputElement
+                          if (input) {
+                            input.click()
+                          }
+                        }}
+                        className="w-full border-2 border-dashed border-gray-300 hover:border-green-400 active:border-green-500 active:bg-green-100 rounded-lg p-6 text-center transition-colors hover:bg-green-50"
+                      >
+                        <Camera className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                        <p className="text-lg font-medium text-gray-900 mb-2">
+                          📸 Kamera ile Çek
+                        </p>
+                        <p className="text-gray-600 text-sm">
+                          Arka kamerayı kullanarak fotoğraf çek
+                        </p>
+                      </button>
+
+                      {/* Galeri Butonu */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          console.log('📁 Galeri butonu tıklandı')
+                          const input = document.getElementById('photo-upload') as HTMLInputElement
+                          if (input) {
+                            input.click()
+                          }
+                        }}
+                        onTouchEnd={(e) => {
+                          e.preventDefault()
+                          console.log('📁 Galeri butonu touch edildi')
+                          const input = document.getElementById('photo-upload') as HTMLInputElement
+                          if (input) {
+                            input.click()
+                          }
+                        }}
+                        className="w-full border-2 border-dashed border-gray-300 hover:border-green-400 active:border-green-500 active:bg-green-100 rounded-lg p-6 text-center transition-colors hover:bg-green-50"
+                      >
+                        <Upload className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                        <p className="text-lg font-medium text-gray-900 mb-2">
+                          📁 Galeriden Seç
+                        </p>
+                        <p className="text-gray-600 text-sm">
+                          Galeriden birden fazla fotoğraf seç
+                        </p>
+                      </button>
                     </div>
+
+                    {/* Debug Bilgisi (geliştirme için) */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <div className="mb-4 p-3 bg-gray-100 rounded-lg text-xs text-gray-600">
+                        <p>Debug: Görev ID: {createdTask?.id}</p>
+                        <p>Fotoğraf sayısı: {formData.photos.length}</p>
+                      </div>
+                    )}
 
                     {/* Yüklenen Fotoğraflar */}
                     {formData.photos.length > 0 && (
                       <div className="mb-6">
-                        <h3 className="text-sm font-medium text-gray-700 mb-3">
-                          Yüklenen Fotoğraflar ({formData.photos.length})
+                        <h3 className="text-sm font-medium text-gray-700 mb-3 text-left">
+                          Yüklenen Fotoğraflar ({formData.photos.length}/10)
                         </h3>
-                        <div className="grid grid-cols-3 gap-4">
-                          {formData.photos.map((photo, index) => (
-                            <div key={`${photo.name}-${photo.size}-${index}`} className="relative">
-                              <img
-                                src={URL.createObjectURL(photo)}
-                                alt={`Fotoğraf ${index + 1}`}
-                                className="w-full h-24 object-cover rounded-lg border"
-                              />
-                              <button
-                                onClick={() => handlePhotoDelete(index)}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
-                                title="Fotoğrafı sil"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {formData.photos.map((photo, index) => {
+                            // Güvenli object URL oluşturma
+                            let imageUrl = ''
+                            try {
+                              imageUrl = URL.createObjectURL(photo)
+                            } catch (error) {
+                              console.error('Object URL oluşturulamadı:', error)
+                              return null
+                            }
+
+                            return (
+                              <div key={`${photo.name}-${photo.size}-${photo.lastModified}-${index}`} className="relative group">
+                                <div className="aspect-square overflow-hidden rounded-lg border-2 border-gray-200">
+                                  <img
+                                    src={imageUrl}
+                                    alt={`Fotoğraf ${index + 1}`}
+                                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                                    onLoad={() => {
+                                      // Image yüklendikten sonra URL'yi temizle
+                                      setTimeout(() => URL.revokeObjectURL(imageUrl), 1000)
+                                    }}
+                                    onError={() => {
+                                      console.error('Fotoğraf yüklenemedi:', photo.name)
+                                      URL.revokeObjectURL(imageUrl)
+                                    }}
+                                  />
+                                </div>
+
+                                {/* Fotoğraf bilgileri */}
+                                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <p className="truncate">{photo.name}</p>
+                                  <p>{(photo.size / 1024 / 1024).toFixed(1)} MB</p>
+                                </div>
+
+                                {/* Silme butonu */}
+                                <button
+                                  onClick={() => handlePhotoDelete(index)}
+                                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-lg"
+                                  title={`${photo.name} fotoğrafını sil`}
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
                     )}
