@@ -4,18 +4,18 @@ import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { Profile, supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/useToast'
-import { useTodayTaskCount, useTasks } from '@/hooks/useTasks'
+import { useTodayTaskCount } from '@/hooks/useTasks'
 import { ToastContainer } from '@/components/ui/toast'
 import ModernNavbar from './ModernNavbar'
 import FileUploadManager from './FileUploadManager'
 import SimpleFileList from './SimpleFileList'
 import TechnicianInventory from './TechnicianInventory'
+import TechnicianTaskManager from './TechnicianTaskManager'
 import TaskWizard from './TaskWizard'
 import { 
   User as UserIcon, 
   FileText, 
   Upload,
-  Settings,
   Package,
   BarChart3,
   CheckSquare,
@@ -97,6 +97,8 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId)
+    // Mobilde sekme değiştiğinde sidebar'ı kapat
+    setIsMobileSidebarOpen(false)
   }
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -344,50 +346,50 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
             <div className="max-w-7xl mx-auto">
               {activeTab === 'overview' && (
                 <div className="space-y-6">
-                  {/* Günlük Görev Kartı */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className={`p-6 rounded-xl ${
+                  {/* Günlük Görev Kartı - Mobile Optimized */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div className={`p-4 sm:p-6 rounded-xl ${
                       theme === 'dark' ? 'bg-slate-800' : 'bg-white'
                     } shadow-sm border-l-4 border-blue-500`}>
                       <div className="flex items-center">
-                        <Target className="h-8 w-8 text-blue-500 mr-3" />
+                        <Target className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 mr-2 sm:mr-3" />
                         <div>
-                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             Bugünkü Görevler
                           </p>
-                          <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          <p className={`text-lg sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                             {todayTaskCount}/9
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className={`p-6 rounded-xl ${
+                    <div className={`p-4 sm:p-6 rounded-xl ${
                       theme === 'dark' ? 'bg-slate-800' : 'bg-white'
                     } shadow-sm border-l-4 border-green-500`}>
                       <div className="flex items-center">
-                        <Clock className="h-8 w-8 text-green-500 mr-3" />
+                        <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 mr-2 sm:mr-3" />
                         <div>
-                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             Çalışma Saati
                           </p>
-                          <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          <p className={`text-lg sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                             {new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className={`p-6 rounded-xl ${
+                    <div className={`p-4 sm:p-6 rounded-xl sm:col-span-2 lg:col-span-1 ${
                       theme === 'dark' ? 'bg-slate-800' : 'bg-white'
                     } shadow-sm border-l-4 border-orange-500`}>
                       <div className="flex items-center">
-                        <Calendar className="h-8 w-8 text-orange-500 mr-3" />
+                        <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 mr-2 sm:mr-3" />
                         <div>
-                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             Kalan Kapasite
                           </p>
-                          <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          <p className={`text-lg sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                             {9 - todayTaskCount}
                           </p>
                         </div>
@@ -395,20 +397,20 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                     </div>
                   </div>
 
-                  {/* Yeni Görev Oluşturma */}
-                  <div className={`p-8 rounded-xl text-center ${
+                  {/* Yeni Görev Oluşturma - Mobile Optimized */}
+                  <div className={`p-6 sm:p-8 rounded-xl text-center ${
                     theme === 'dark' ? 'bg-slate-800' : 'bg-white'
                   } shadow-sm`}>
-                    <CheckSquare className={`h-16 w-16 mx-auto mb-4 ${
+                    <CheckSquare className={`h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 ${
                       theme === 'dark' ? 'text-green-400' : 'text-green-500'
                     }`} />
-                    <h3 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    <h3 className={`text-lg sm:text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                       Yeni Görev Oluştur
                     </h3>
-                    <p className={`mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <p className={`mb-6 text-sm sm:text-base ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       Günlük kapasitenizdeki görev sayısı: <strong>{todayTaskCount}/9</strong>
                       {todayTaskCount >= 9 && (
-                        <span className="text-red-500 block mt-2">
+                        <span className="text-red-500 block mt-2 text-sm">
                           ⚠️ Günlük görev limitine ulaştınız
                         </span>
                       )}
@@ -416,27 +418,27 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                     <button
                       onClick={() => setShowTaskWizard(true)}
                       disabled={todayTaskCount >= 9}
-                      className={`px-8 py-3 rounded-lg font-medium transition-colors ${
+                      className={`w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-medium transition-colors ${
                         todayTaskCount >= 9
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : theme === 'dark'
                             ? 'bg-green-600 hover:bg-green-700 text-white'
                             : 'bg-green-600 hover:bg-green-700 text-white'
-                      } flex items-center space-x-2 mx-auto`}
+                      } flex items-center justify-center space-x-2 mx-auto`}
                     >
                       <Plus className="h-5 w-5" />
                       <span>Yeni Görev Oluştur</span>
                     </button>
                   </div>
 
-                  {/* Hoş Geldiniz Mesajı */}
-                  <div className={`p-8 rounded-xl text-center ${
+                  {/* Hoş Geldiniz Mesajı - Mobile Optimized */}
+                  <div className={`p-6 sm:p-8 rounded-xl text-center ${
                     theme === 'dark' ? 'bg-slate-800' : 'bg-white'
                   } shadow-sm`}>
-                    <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    <h3 className={`text-lg sm:text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                       Hoş Geldiniz, {profile.full_name}!
                     </h3>
-                    <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <p className={`mt-2 text-sm sm:text-base ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       Görevlerinizi yönetmek, dosyalarınızı düzenlemek ve envanter durumunuzu görüntülemek için menüden seçim yapabilirsiniz.
                     </p>
                   </div>
@@ -444,10 +446,10 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
               )}
 
               {activeTab === 'profile' && (
-                <div className={`max-w-2xl p-8 rounded-xl ${
+                <div className={`max-w-2xl mx-auto p-4 sm:p-6 lg:p-8 rounded-xl ${
                   theme === 'dark' ? 'bg-slate-800' : 'bg-white'
                 } shadow-sm`}>
-                  <form onSubmit={handleProfileUpdate} className="space-y-6">
+                  <form onSubmit={handleProfileUpdate} className="space-y-4 sm:space-y-6">
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${
                         theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
@@ -458,7 +460,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                         type="text"
                         value={profileData.full_name}
                         onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
-                        className={`w-full px-4 py-3 rounded-lg border transition-colors ${
+                        className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg border transition-colors text-sm sm:text-base ${
                           theme === 'dark' 
                             ? 'bg-slate-700 border-slate-600 text-white focus:border-green-500' 
                             : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-green-500'
@@ -476,7 +478,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                         type="tel"
                         value={profileData.phone}
                         onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
-                        className={`w-full px-4 py-3 rounded-lg border transition-colors ${
+                        className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg border transition-colors text-sm sm:text-base ${
                           theme === 'dark' 
                             ? 'bg-slate-700 border-slate-600 text-white focus:border-green-500' 
                             : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-green-500'
@@ -494,7 +496,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                         type="email"
                         value={user.email}
                         disabled
-                        className={`w-full px-4 py-3 rounded-lg border transition-colors ${
+                        className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg border transition-colors text-sm sm:text-base ${
                           theme === 'dark' 
                             ? 'bg-slate-600 border-slate-500 text-gray-300' 
                             : 'bg-gray-100 border-gray-200 text-gray-500'
@@ -504,7 +506,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
                     <button
                       type="submit"
                       disabled={isUpdatingProfile}
-                      className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50"
+                      className="w-full py-2 sm:py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 text-sm sm:text-base"
                     >
                       {isUpdatingProfile ? 'Güncelleniyor...' : 'Profili Güncelle'}
                     </button>
@@ -534,10 +536,9 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
               )}
 
               {activeTab === 'tasks' && (
-                <TechnicianTaskList 
-                  userId={user.id}
-                  theme={theme}
-                  onRefresh={() => setRefreshTrigger(prev => prev + 1)}
+                <TechnicianTaskManager 
+                  technicianId={user.id}
+                  onToast={handleToast}
                 />
               )}
             </div>
@@ -565,133 +566,4 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
   )
 }
 
-// Teknisyen görev listesi bileşeni
-interface TechnicianTaskListProps {
-  userId: string
-  theme: 'light' | 'dark'
-  onRefresh: () => void
-}
 
-function TechnicianTaskList({ userId, theme, onRefresh }: TechnicianTaskListProps) {
-  const { 
-    data: tasks = [], 
-    isLoading: loading, 
-    refetch: refetchTasks 
-  } = useTasks(userId)
-
-  // Refresh trigger
-  useEffect(() => {
-    refetchTasks()
-  }, [onRefresh, refetchTasks])
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'in_progress': return 'bg-blue-100 text-blue-800'
-      case 'completed': return 'bg-green-100 text-green-800'
-      case 'cancelled': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'pending': return 'Bekliyor'
-      case 'in_progress': return 'Devam Ediyor'
-      case 'completed': return 'Tamamlandı'
-      case 'cancelled': return 'İptal Edildi'
-      default: return status
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className={`p-8 rounded-xl ${theme === 'dark' ? 'bg-slate-800' : 'bg-white'} shadow-sm`}>
-        <div className="animate-pulse">
-          <div className={`h-4 ${theme === 'dark' ? 'bg-slate-700' : 'bg-gray-200'} rounded w-1/4 mb-4`}></div>
-          <div className={`h-4 ${theme === 'dark' ? 'bg-slate-700' : 'bg-gray-200'} rounded w-1/2 mb-2`}></div>
-          <div className={`h-4 ${theme === 'dark' ? 'bg-slate-700' : 'bg-gray-200'} rounded w-1/3`}></div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className={`p-8 rounded-xl ${theme === 'dark' ? 'bg-slate-800' : 'bg-white'} shadow-sm`}>
-      <div className="flex justify-between items-center mb-6">
-        <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-          Görevlerim
-        </h3>
-        <button
-          onClick={() => refetchTasks()}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            theme === 'dark'
-              ? 'bg-slate-700 hover:bg-slate-600 text-white'
-              : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-          }`}
-        >
-          🔄 Yenile
-        </button>
-      </div>
-
-      {tasks.length === 0 ? (
-        <div className="text-center py-8">
-          <CheckSquare className={`mx-auto h-12 w-12 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'}`} />
-          <p className={`mt-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-            Henüz göreviniz bulunmamaktadır.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className={`border-b ${theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`}>
-                <th className={`text-left py-3 px-4 font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Görev Tipi
-                </th>
-                <th className={`text-left py-3 px-4 font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Servis No
-                </th>
-                <th className={`text-left py-3 px-4 font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Durum
-                </th>
-                <th className={`text-left py-3 px-4 font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Oluşturma
-                </th>
-                <th className={`text-left py-3 px-4 font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Konum
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.map((task) => (
-                <tr 
-                  key={task.id}
-                  className={`border-b ${theme === 'dark' ? 'border-slate-700' : 'border-gray-100'} hover:${theme === 'dark' ? 'bg-slate-700' : 'bg-gray-50'}`}
-                >
-                  <td className={`py-4 px-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                    {task.task_type || '-'}
-                  </td>
-                  <td className={`py-4 px-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                    {task.service_number || '-'}
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
-                      {getStatusText(task.status)}
-                    </span>
-                  </td>
-                  <td className={`py-4 px-4 text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                    {task.created_at ? new Date(task.created_at).toLocaleDateString('tr-TR') : '-'}
-                  </td>
-                  <td className={`py-4 px-4 text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                    {task.location || '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
-}

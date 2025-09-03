@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { taskAPI } from '@/lib/api-client'
 import { Task, Profile } from '@/lib/supabase'
+import { useAdminTasks, useDeleteTask, useUpdateTask } from '@/hooks/useTasks'
 import { 
   CheckSquare, 
   User, 
@@ -23,7 +24,11 @@ import {
   Wifi,
   Wrench,
   Truck,
-  MoreHorizontal
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  X,
+  Save
 } from 'lucide-react'
 
 interface AdminTaskManagerProps {
@@ -50,23 +55,56 @@ interface TaskStats {
 }
 
 export default function AdminTaskManager({ onToast }: AdminTaskManagerProps) {
-  const [tasks, setTasks] = useState<TaskWithProfile[]>([])
-  const [filteredTasks, setFilteredTasks] = useState<TaskWithProfile[]>([])
-  const [stats, setStats] = useState<TaskStats>({
-    total: 0,
-    completed: 0,
-    pending: 0,
-    in_progress: 0,
-    by_technician: {},
-    by_type: {}
-  })
-  const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [selectedTechnician, setSelectedTechnician] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedType, setSelectedType] = useState('all')
   const [technicians, setTechnicians] = useState<Profile[]>([])
   const [expandedTask, setExpandedTask] = useState<string | null>(null)
+  const [editingTask, setEditingTask] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<{
+    service_number: string
+    location: string
+    notes: string
+    status: string
+  }>({
+    service_number: '',
+    location: '',
+    notes: '',
+    status: ''
+  })
+
+  // React Query hooks
+  const { 
+    data: tasks = [], 
+    isLoading, 
+    error 
+  } = useAdminTasks({
+    date: selectedDate,
+    technician_id: selectedTechnician !== 'all' ? selectedTechnician : undefined,
+    status: selectedStatus !== 'all' ? selectedStatus : undefined,
+    task_type: selectedType !== 'all' ? selectedType : undefined
+  })
+
+  const deleteTaskMutation = useDeleteTask()
+  const updateTaskMutation = useUpdateTask()
+
+  // İstatistikleri hesapla
+  const stats = {
+    total: tasks.length,
+    completed: tasks.filter(t => t.status === 'completed').length,
+    pending: tasks.filter(t => t.status === 'pending').length,
+    in_progress: tasks.filter(t => t.status === 'in_progress').length,
+    by_technician: tasks.reduce((acc, task) => {
+      const techName = task.profiles?.full_name || 'Bilinmeyen'
+      acc[techName] = (acc[techName] || 0) + 1
+      return acc
+    }, {} as { [key: string]: number }),
+    by_type: tasks.reduce((acc, task) => {
+      acc[task.task_type] = (acc[task.task_type] || 0) + 1
+      return acc
+    }, {} as { [key: string]: number })
+  }
 
   // Görev tipleri
   const taskTypes = [
@@ -92,101 +130,75 @@ export default function AdminTaskManager({ onToast }: AdminTaskManagerProps) {
     cancelled: 'İptal Edildi'
   }
 
-  // Görevleri ve teknisyenleri yükle
-  const loadData = async () => {
-    try {
-      setLoading(true)
-
-      // Teknisyenleri yükle
-      const { data: techData, error: techError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'technician')
-        .order('full_name')
-
-      if (techError) throw techError
-      setTechnicians(techData || [])
-
-      // Görevleri yükle
-      await loadTasks()
-
-    } catch (error: any) {
-      console.error('Veri yükleme hatası:', error)
-      onToast('error', 'Hata', 'Veriler yüklenemedi')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadTasks = async () => {
-    try {
-      // Yeni API client kullan
-      const result = await taskAPI.getTasks({
-        date: selectedDate
-      })
-      
-      const tasksData = result.data || []
-      
-      setTasks(tasksData)
-      calculateStats(tasksData)
-      
-    } catch (error: any) {
-      console.error('Görevler yüklenirken hata:', error)
-      onToast('error', 'Hata', 'Görevler yüklenemedi')
-    }
-  }
-
-  // İstatistikleri hesapla
-  const calculateStats = (tasksData: TaskWithProfile[]) => {
-    const newStats: TaskStats = {
-      total: tasksData.length,
-      completed: tasksData.filter(t => t.status === 'completed').length,
-      pending: tasksData.filter(t => t.status === 'pending').length,
-      in_progress: tasksData.filter(t => t.status === 'in_progress').length,
-      by_technician: {},
-      by_type: {}
-    }
-
-    // Tekniksyen bazlı hesaplama
-    tasksData.forEach(task => {
-      const techName = task.profiles?.full_name || 'Bilinmeyen'
-      newStats.by_technician[techName] = (newStats.by_technician[techName] || 0) + 1
-    })
-
-    // Tip bazlı hesaplama
-    tasksData.forEach(task => {
-      newStats.by_type[task.task_type] = (newStats.by_type[task.task_type] || 0) + 1
-    })
-
-    setStats(newStats)
-  }
-
-  // Filtreleme
+  // Teknisyenleri yükle
   useEffect(() => {
-    let filtered = tasks
+    const loadTechnicians = async () => {
+      try {
+        const { data: techData, error: techError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('role', 'technician')
+          .order('full_name')
 
-    if (selectedTechnician !== 'all') {
-      filtered = filtered.filter(task => task.technician_id === selectedTechnician)
+        if (techError) throw techError
+        setTechnicians(techData || [])
+      } catch (error: any) {
+        console.error('Teknisyen yükleme hatası:', error)
+        onToast('error', 'Hata', 'Teknisyenler yüklenemedi')
+      }
     }
 
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter(task => task.status === selectedStatus)
-    }
-
-    if (selectedType !== 'all') {
-      filtered = filtered.filter(task => task.task_type === selectedType)
-    }
-
-    setFilteredTasks(filtered)
-  }, [tasks, selectedTechnician, selectedStatus, selectedType])
-
-  useEffect(() => {
-    loadData()
+    loadTechnicians()
   }, [])
 
-  useEffect(() => {
-    loadTasks()
-  }, [selectedDate])
+  // Görev silme
+  const handleDeleteTask = async (taskId: string) => {
+    if (!confirm('Bu görevi silmek istediğinizden emin misiniz?')) return
+
+    try {
+      await deleteTaskMutation.mutateAsync(taskId)
+      onToast('success', 'Başarılı', 'Görev silindi')
+    } catch (error: any) {
+      onToast('error', 'Hata', error.message || 'Görev silinemedi')
+    }
+  }
+
+  // Görev düzenleme başlat
+  const handleEditStart = (task: TaskWithProfile) => {
+    setEditingTask(task.id)
+    setEditForm({
+      service_number: task.service_number,
+      location: task.location || '',
+      notes: task.notes || '',
+      status: task.status
+    })
+  }
+
+  // Görev düzenleme kaydet
+  const handleEditSave = async (taskId: string) => {
+    try {
+      await updateTaskMutation.mutateAsync({
+        taskId,
+        updates: editForm
+      })
+      
+      setEditingTask(null)
+      onToast('success', 'Başarılı', 'Görev güncellendi')
+    } catch (error: any) {
+      onToast('error', 'Hata', error.message || 'Görev güncellenemedi')
+    }
+  }
+
+  // Görev düzenleme iptal
+  const handleEditCancel = () => {
+    setEditingTask(null)
+    setEditForm({
+      service_number: '',
+      location: '',
+      notes: '',
+      status: ''
+    })
+  }
 
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString('tr-TR')
@@ -205,10 +217,24 @@ export default function AdminTaskManager({ onToast }: AdminTaskManagerProps) {
     return taskTypes.find(t => t.value === type)?.label || type
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-red-600 mb-4">Görevler yüklenirken hata oluştu</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Yeniden Dene
+        </button>
       </div>
     )
   }
@@ -326,7 +352,7 @@ export default function AdminTaskManager({ onToast }: AdminTaskManagerProps) {
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
-            Görevler ({filteredTasks.length})
+            Görevler ({tasks.length})
           </h3>
         </div>
 
@@ -355,7 +381,7 @@ export default function AdminTaskManager({ onToast }: AdminTaskManagerProps) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredTasks.map((task) => (
+              {tasks.map((task) => (
                 <tr key={task.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -379,32 +405,95 @@ export default function AdminTaskManager({ onToast }: AdminTaskManagerProps) {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{task.service_number}</div>
-                    {task.location && (
-                      <div className="text-sm text-gray-500 flex items-center">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {task.location}
+                    {editingTask === task.id ? (
+                      <input
+                        type="text"
+                        value={editForm.service_number}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, service_number: e.target.value }))}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    ) : (
+                      <div>
+                        <div className="text-sm text-gray-900">{task.service_number}</div>
+                        {task.location && (
+                          <div className="text-sm text-gray-500 flex items-center">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            {task.location}
+                          </div>
+                        )}
                       </div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${
-                      statusColors[task.status as keyof typeof statusColors]
-                    }`}>
-                      {statusLabels[task.status as keyof typeof statusLabels]}
-                    </span>
+                    {editingTask === task.id ? (
+                      <select
+                        value={editForm.status}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value }))}
+                        className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="pending">Bekliyor</option>
+                        <option value="in_progress">Devam Ediyor</option>
+                        <option value="completed">Tamamlandı</option>
+                        <option value="cancelled">İptal Edildi</option>
+                      </select>
+                    ) : (
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${
+                        statusColors[task.status as keyof typeof statusColors]
+                      }`}>
+                        {statusLabels[task.status as keyof typeof statusLabels]}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDateTime(task.created_at)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => setExpandedTask(expandedTask === task.id ? null : task.id)}
-                      className="text-blue-600 hover:text-blue-900 flex items-center space-x-1"
-                    >
-                      <Eye className="h-4 w-4" />
-                      <span>Detay</span>
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      {editingTask === task.id ? (
+                        <>
+                          <button
+                            onClick={() => handleEditSave(task.id)}
+                            disabled={updateTaskMutation.isPending}
+                            className="text-green-600 hover:text-green-900 flex items-center space-x-1"
+                          >
+                            <Save className="h-4 w-4" />
+                            <span>Kaydet</span>
+                          </button>
+                          <button
+                            onClick={handleEditCancel}
+                            className="text-gray-600 hover:text-gray-900 flex items-center space-x-1"
+                          >
+                            <X className="h-4 w-4" />
+                            <span>İptal</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => setExpandedTask(expandedTask === task.id ? null : task.id)}
+                            className="text-blue-600 hover:text-blue-900 flex items-center space-x-1"
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span>Detay</span>
+                          </button>
+                          <button
+                            onClick={() => handleEditStart(task)}
+                            className="text-yellow-600 hover:text-yellow-900 flex items-center space-x-1"
+                          >
+                            <Edit className="h-4 w-4" />
+                            <span>Düzenle</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTask(task.id)}
+                            disabled={deleteTaskMutation.isPending}
+                            className="text-red-600 hover:text-red-900 flex items-center space-x-1"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span>Sil</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -412,7 +501,7 @@ export default function AdminTaskManager({ onToast }: AdminTaskManagerProps) {
           </table>
         </div>
 
-        {filteredTasks.length === 0 && (
+        {tasks.length === 0 && (
           <div className="text-center py-12">
             <CheckSquare className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Görev bulunamadı</h3>
@@ -428,7 +517,7 @@ export default function AdminTaskManager({ onToast }: AdminTaskManagerProps) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             {(() => {
-              const task = filteredTasks.find(t => t.id === expandedTask)
+              const task = tasks.find(t => t.id === expandedTask)
               if (!task) return null
 
               return (
@@ -476,11 +565,45 @@ export default function AdminTaskManager({ onToast }: AdminTaskManagerProps) {
                       </div>
                     )}
 
-                    {task.notes && (
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Notlar</label>
-                        <p className="text-sm text-gray-900">{task.notes}</p>
+                    {editingTask === task.id ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Konum</label>
+                          <input
+                            type="text"
+                            value={editForm.location}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, location: e.target.value }))}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Konum bilgisi"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Notlar</label>
+                          <textarea
+                            value={editForm.notes}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                            rows={3}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Ek notlar"
+                          />
+                        </div>
                       </div>
+                    ) : (
+                      <>
+                        {task.location && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Konum</label>
+                            <p className="text-sm text-gray-900">{task.location}</p>
+                          </div>
+                        )}
+
+                        {task.notes && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Notlar</label>
+                            <p className="text-sm text-gray-900">{task.notes}</p>
+                          </div>
+                        )}
+                      </>
                     )}
 
                     <div className="grid grid-cols-2 gap-4">

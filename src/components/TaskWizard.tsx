@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { taskAPI } from '@/lib/api-client'
-import { Task, TaskType } from '@/lib/supabase'
+import { Task } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import {
   ArrowLeft,
@@ -11,7 +11,6 @@ import {
   CheckCircle,
   Camera,
   Upload,
-  MapPin,
   Wrench,
   Wifi,
   Cable,
@@ -19,9 +18,6 @@ import {
   MoreHorizontal,
   User,
   Hash,
-  FileText,
-  Calendar,
-  Clock,
   X
 } from 'lucide-react'
 
@@ -313,10 +309,11 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
     try {
       setLoading(true)
 
-      // Görevi tamamlandı olarak işaretle - Yeni API client kullan
+      // Görevi tamamlandı olarak işaretle
       await taskAPI.updateTask({
         id: createdTask.id,
-        status: 'completed'
+        status: 'completed',
+        completed_at: new Date().toISOString()
       })
 
       onToast('success', 'Tebrikler!', 'Görev başarıyla tamamlandı')
@@ -330,42 +327,44 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
     }
   }
 
+
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Background Overlay */}
       <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onCancel} />
 
-      {/* Modal Content */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      {/* Modal Content - Mobile Optimized */}
+      <div className="flex min-h-full items-center justify-center p-2 sm:p-4">
+        <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
 
-          {/* Header */}
-          <div className="bg-white border-b border-gray-200 px-6 py-4">
+          {/* Header - Mobile Optimized */}
+          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 sm:space-x-4">
                 <button
                   onClick={onCancel}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-100"
+                  className="p-1 sm:p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-100"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
-                <h1 className="text-xl font-semibold text-gray-900">
+                <h1 className="text-lg sm:text-xl font-semibold text-gray-900">
                   Yeni Görev Oluştur
                 </h1>
               </div>
 
-              {/* Progress */}
-              <div className="flex items-center space-x-2">
+              {/* Progress - Mobile Optimized */}
+              <div className="flex items-center space-x-1 sm:space-x-2">
                 {[1, 2, 3].map((step) => (
                   <div
                     key={step}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step <= currentStep
+                    className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium ${step <= currentStep
                         ? 'bg-green-600 text-white'
                         : 'bg-gray-200 text-gray-500'
                       }`}
                   >
                     {step < currentStep ? (
-                      <CheckCircle className="h-4 w-4" />
+                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                     ) : (
                       step
                     )}
@@ -375,39 +374,39 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
             </div>
           </div>
 
-          {/* Content */}
-          <div className="overflow-y-auto max-h-[calc(90vh-160px)]">
-            <div className="p-6">
-              <div className="max-w-2xl mx-auto space-y-6">
+          {/* Content - Mobile Optimized */}
+          <div className="overflow-y-auto max-h-[calc(95vh-140px)] sm:max-h-[calc(90vh-160px)]">
+            <div className="p-4 sm:p-6">
+              <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6">
 
-                {/* Step 1: İş Tipi Seçimi */}
+                {/* Step 1: İş Tipi Seçimi - Mobile Optimized */}
                 {currentStep === 1 && (
                   <div className="text-center">
-                    <User className="h-12 w-12 text-green-600 mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    <User className="h-10 w-10 sm:h-12 sm:w-12 text-green-600 mx-auto mb-3 sm:mb-4" />
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                       Hangi işi yapacaksınız?
                     </h2>
-                    <p className="text-gray-600 mb-8">
+                    <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
                       Yapacağınız iş tipini seçerek başlayın
                     </p>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       {taskTypes.map((type) => (
                         <button
                           key={type.value}
                           onClick={() => setFormData({ ...formData, task_type: type.value })}
-                          className={`p-6 rounded-lg border-2 transition-all ${formData.task_type === type.value
+                          className={`p-4 sm:p-6 rounded-lg border-2 transition-all ${formData.task_type === type.value
                               ? 'border-green-500 bg-green-50'
                               : 'border-gray-200 hover:border-gray-300'
                             }`}
                         >
-                          <div className={`w-16 h-16 rounded-lg ${type.color} flex items-center justify-center mx-auto mb-4 text-white`}>
+                          <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-lg ${type.color} flex items-center justify-center mx-auto mb-3 sm:mb-4 text-white`}>
                             {type.icon}
                           </div>
-                          <h3 className="font-semibold text-gray-900 mb-2">
+                          <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">
                             {type.label}
                           </h3>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-xs sm:text-sm text-gray-600">
                             {type.description}
                           </p>
                         </button>
@@ -416,18 +415,18 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
                   </div>
                 )}
 
-                {/* Step 2: Hizmet Numarası */}
+                {/* Step 2: Hizmet Numarası - Mobile Optimized */}
                 {currentStep === 2 && (
                   <div className="text-center">
-                    <Hash className="h-12 w-12 text-green-600 mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    <Hash className="h-10 w-10 sm:h-12 sm:w-12 text-green-600 mx-auto mb-3 sm:mb-4" />
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                       Hizmet Numarası
                     </h2>
-                    <p className="text-gray-600 mb-8">
+                    <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
                       Müşterinin hizmet numarasını girin
                     </p>
 
-                    <div className="space-y-6 text-left">
+                    <div className="space-y-4 sm:space-y-6 text-left">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Hizmet Numarası *
@@ -436,7 +435,7 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
                           type="text"
                           value={formData.service_number}
                           onChange={(e) => setFormData({ ...formData, service_number: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-lg"
+                          className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-base sm:text-lg"
                           placeholder="Örn: 1234567890"
                           autoFocus
                         />
@@ -450,7 +449,7 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
                           type="text"
                           value={formData.location}
                           onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm sm:text-base"
                           placeholder="Müşteri adresi (opsiyonel)"
                         />
                       </div>
@@ -463,7 +462,7 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
                           value={formData.notes}
                           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                           rows={3}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm sm:text-base"
                           placeholder="Ek bilgiler (opsiyonel)"
                         />
                       </div>
@@ -652,6 +651,9 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
                         <p className="text-sm">
                           {formData.photos.length}/10 fotoğraf yüklendi ✓
                         </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Fotoğrafları ekledikten sonra "Tamamla" butonuna basın
+                        </p>
                       </div>
                     )}
                   </div>
@@ -661,8 +663,8 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+          {/* Footer - Mobile Optimized */}
+          <div className="border-t border-gray-200 px-4 sm:px-6 py-3 sm:py-4 bg-gray-50">
             <div className="flex justify-between items-center">
               {currentStep > 1 ? (
                 <Button
@@ -670,10 +672,10 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
                   variant="outline"
                   onClick={handleBack}
                   disabled={loading}
-                  className="flex items-center space-x-2"
+                  className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 text-sm sm:text-base"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  <span>Geri</span>
+                  <span className="hidden sm:inline">Geri</span>
                 </Button>
               ) : (
                 <div />
@@ -684,7 +686,7 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
                   type="button"
                   onClick={handleNext}
                   disabled={loading}
-                  className="flex items-center space-x-2"
+                  className="flex items-center space-x-1 sm:space-x-2 px-4 sm:px-6 py-2 text-sm sm:text-base bg-green-600 hover:bg-green-700"
                 >
                   <span>{loading ? 'İşleniyor...' : 'İleri'}</span>
                   <ArrowRight className="h-4 w-4" />
@@ -694,7 +696,7 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
                   type="button"
                   onClick={handleComplete}
                   disabled={loading || formData.photos.length === 0}
-                  className="flex items-center space-x-2 bg-green-600 hover:bg-green-700"
+                  className="flex items-center space-x-1 sm:space-x-2 px-4 sm:px-6 py-2 text-sm sm:text-base bg-green-600 hover:bg-green-700"
                 >
                   <CheckCircle className="h-4 w-4" />
                   <span>{loading ? 'Tamamlanıyor...' : 'Görevi Tamamla'}</span>
