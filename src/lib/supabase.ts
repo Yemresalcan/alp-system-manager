@@ -127,3 +127,80 @@ export interface InventoryCategory {
   created_at: string
   updated_at: string
 }
+
+// Vehicle Management Types
+export interface Vehicle {
+  id: string
+  name: string
+  brand: string
+  model: string
+  year?: number
+  license_plate: string
+  vehicle_type: 'car' | 'van' | 'truck' | 'motorcycle' | 'other'
+  fuel_type?: 'gasoline' | 'diesel' | 'electric' | 'hybrid'
+  color?: string
+  chassis_number?: string
+  engine_number?: string
+  insurance_expiry?: string
+  inspection_expiry?: string
+  status: 'available' | 'assigned' | 'maintenance' | 'out_of_service'
+  condition: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged'
+  mileage?: number
+  notes?: string
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface VehicleAssignment {
+  id: string
+  vehicle_id: string
+  technician_id: string
+  assigned_date: string
+  expected_return_date?: string
+  actual_return_date?: string
+  assignment_status: 'active' | 'returned' | 'overdue'
+  condition_on_delivery: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged'
+  condition_on_return?: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged'
+  mileage_on_delivery?: number
+  mileage_on_return?: number
+  fuel_level_on_delivery?: number
+  fuel_level_on_return?: number
+  delivery_notes?: string
+  return_notes?: string
+  assigned_by: string
+  returned_by?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface VehicleMaintenance {
+  id: string
+  vehicle_id: string
+  maintenance_type: 'scheduled' | 'repair' | 'inspection' | 'insurance' | 'other'
+  description: string
+  cost?: number
+  maintenance_date: string
+  next_maintenance_date?: string
+  mileage_at_maintenance?: number
+  service_provider?: string
+  invoice_number?: string
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  notes?: string
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface VehicleNotification {
+  id: string
+  vehicle_id: string
+  technician_id: string
+  notification_type: 'assignment' | 'return_reminder' | 'maintenance' | 'overdue'
+  title: string
+  message: string
+  is_read: boolean
+  sent_at: string
+  read_at?: string
+  created_at: string
+}

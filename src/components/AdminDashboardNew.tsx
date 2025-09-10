@@ -10,13 +10,15 @@ import TechnicianManager from './TechnicianManager'
 import TechnicianFileGroups from './TechnicianFileGroups'
 import InventoryManager from './InventoryManager'
 import AdminTaskManager from './AdminTaskManager'
+import VehicleManager from './VehicleManager'
 import { 
   Users, 
   FileText, 
   CheckSquare, 
   Package,
   BarChart3,
-  Calendar
+  Calendar,
+  Car
 } from 'lucide-react'
 
 interface AdminDashboardProps {
@@ -51,6 +53,7 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
     { id: 'tasks', label: 'Görev Yönetimi', icon: CheckSquare, color: 'red' },
     { id: 'files', label: 'Dosya Yönetimi', icon: FileText, color: 'purple' },
     { id: 'inventory', label: 'Envanter', icon: Package, color: 'orange' },
+    { id: 'vehicles', label: 'Araç Yönetimi', icon: Car, color: 'teal' },
     { id: 'calendar', label: 'Takvim', icon: Calendar, color: 'indigo' },
   ]
 
@@ -147,6 +150,7 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
                     {activeTab === 'files' && 'Dosya yüklemeleri ve paylaşımları'}
                     {activeTab === 'tasks' && 'Görev atamaları ve takibi'}
                     {activeTab === 'inventory' && 'Envanter ve malzeme yönetimi'}
+                    {activeTab === 'vehicles' && 'Araç atama ve takip sistemi'}
                     {activeTab === 'overview' && 'Sistem genel durumu ve yönetim paneli'}
                     {activeTab === 'calendar' && 'Randevu ve etkinlik yönetimi'}
                   </p>
@@ -242,6 +246,10 @@ function AdminDashboard({ user, profile }: AdminDashboardProps) {
 
               {activeTab === 'tasks' && (
                 <AdminTaskManager onToast={handleToast} />
+              )}
+
+              {activeTab === 'vehicles' && (
+                <VehicleManager onToast={handleToast} />
               )}
 
               {activeTab === 'calendar' && (

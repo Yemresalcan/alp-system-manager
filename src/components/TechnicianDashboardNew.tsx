@@ -11,6 +11,7 @@ import FileUploadManager from './FileUploadManager'
 import SimpleFileList from './SimpleFileList'
 import TechnicianInventory from './TechnicianInventory'
 import TechnicianTaskManager from './TechnicianTaskManager'
+import TechnicianVehicle from './TechnicianVehicle'
 import TaskWizard from './TaskWizard'
 import { 
   User as UserIcon, 
@@ -24,7 +25,8 @@ import {
   Clock,
   Target,
   Menu,
-  X
+  X,
+  Car
 } from 'lucide-react'
 
 interface TechnicianDashboardProps {
@@ -135,6 +137,7 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
     { id: 'files', label: 'Dosyalarım', icon: FileText, color: 'orange' },
     { id: 'tasks', label: 'Görevlerim', icon: CheckSquare, color: 'red' },
     { id: 'inventory', label: 'Envanterim', icon: Package, color: 'indigo' },
+    { id: 'vehicles', label: 'Araçlarım', icon: Car, color: 'teal' },
   ]
 
   // Ana loading state'i kontrol et - cached data ile daha hızlı
@@ -530,6 +533,13 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
 
               {activeTab === 'inventory' && (
                 <TechnicianInventory 
+                  technicianId={user.id}
+                  onToast={handleToast}
+                />
+              )}
+
+              {activeTab === 'vehicles' && (
+                <TechnicianVehicle 
                   technicianId={user.id}
                   onToast={handleToast}
                 />
