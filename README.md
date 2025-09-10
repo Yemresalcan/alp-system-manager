@@ -1,6 +1,11 @@
 # Alp Sistem - Tekniksyen Takip Sistemi
 
 Modern, hızlı ve güvenli tekniksyen takip ve yönetim sistemi.
+<img width="1856" height="794" alt="image" src="https://github.com/user-attachments/assets/2389769f-76eb-48a6-a3ec-56987938312d" />
+
+<img width="1885" height="825" alt="image" src="https://github.com/user-attachments/assets/1e7a63ae-a495-465a-a74e-3b8037acde87" />
+
+
 
 ## 🚀 Özellikler
 
