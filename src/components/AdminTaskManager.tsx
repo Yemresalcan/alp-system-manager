@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, EQUIPMENT_TYPES } from '@/lib/supabase'
 import { taskAPI } from '@/lib/api-client'
-import { Task, Profile } from '@/lib/supabase'
+import { Task, Profile, EquipmentAssignment } from '@/lib/supabase'
 import { useAdminTasks, useDeleteTask, useUpdateTask } from '@/hooks/useTasks'
 import { 
   CheckSquare, 
@@ -562,6 +562,97 @@ export default function AdminTaskManager({ onToast }: AdminTaskManagerProps) {
                       <div>
                         <label className="text-sm font-medium text-gray-700">Konum</label>
                         <p className="text-sm text-gray-900">{task.location}</p>
+                      </div>
+                    )}
+
+                    {/* Equipment Assignments - New unified system */}
+                    {((task.equipment_assignments && task.equipment_assignments.length > 0) || task.modem_serial_number) && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center">
+                            <span className="text-sm font-semibold">📦</span>
+                          </div>
+                          <h4 className="text-sm font-medium text-blue-900">Kullanılan Ekipmanlar</h4>
+                        </div>
+
+                        {/* New equipment assignments system */}
+                        {task.equipment_assignments && task.equipment_assignments.length > 0 && (
+                          <div className="space-y-3">
+                            {task.equipment_assignments.map((equipment: EquipmentAssignment, index: number) => {
+                              const equipmentInfo = EQUIPMENT_TYPES[equipment.equipment_type]
+                              return (
+                                <div key={index} className="bg-white rounded-lg border border-blue-200 p-3">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <span className="text-lg">{equipmentInfo?.icon || '📱'}</span>
+                                    <span className="font-medium text-blue-900 text-sm">
+                                      {equipmentInfo?.label || equipment.equipment_type}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                      <label className="font-medium text-blue-700">Seri No:</label>
+                                      <p className="text-blue-900 font-mono">{equipment.serial_number}</p>
+                                    </div>
+                                    <div>
+                                      <label className="font-medium text-blue-700">Durum:</label>
+                                      <p className="text-blue-900">{equipment.status || 'in_use'}</p>
+                                    </div>
+                                    {equipment.assigned_at && (
+                                      <div className="sm:col-span-2">
+                                        <label className="font-medium text-blue-700">Atama Tarihi:</label>
+                                        <p className="text-blue-900">
+                                          {new Date(equipment.assigned_at).toLocaleDateString('tr-TR', {
+                                            day: '2-digit',
+                                            month: '2-digit', 
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                          })}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {/* Backward compatibility - Old modem system */}
+                        {task.modem_serial_number && (!task.equipment_assignments || task.equipment_assignments.length === 0) && (
+                          <div className="bg-white rounded-lg border border-blue-200 p-3">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <span className="text-lg">📡</span>
+                              <span className="font-medium text-blue-900 text-sm">Modem</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <label className="font-medium text-blue-700">Seri No:</label>
+                                <p className="text-blue-900 font-mono">{task.modem_serial_number}</p>
+                              </div>
+                              {task.modem_assigned_at && (
+                                <div>
+                                  <label className="font-medium text-blue-700">Atama Tarihi:</label>
+                                  <p className="text-blue-900">
+                                    {new Date(task.modem_assigned_at).toLocaleDateString('tr-TR', {
+                                      day: '2-digit',
+                                      month: '2-digit', 
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </p>
+                                </div>
+                              )}
+                              {task.modem_usage_notes && (
+                                <div className="sm:col-span-2">
+                                  <label className="font-medium text-blue-700">Modem Notları:</label>
+                                  <p className="text-blue-900 text-xs mt-1">{task.modem_usage_notes}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 

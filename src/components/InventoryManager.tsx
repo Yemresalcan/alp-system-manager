@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { getCityInfo } from '@/lib/cities'
 import InventoryItemModal from './InventoryItemModal'
 import MultiAssignInventoryModal from './MultiAssignInventoryModal'
+import ExcelUploadModal from './ExcelUploadModal'
 import { 
   Package, 
   Plus, 
@@ -26,7 +27,8 @@ import {
   ShoppingCart,
   MapPin,
   Hash,
-  Eye
+  Eye,
+  Upload
 } from 'lucide-react'
 
 interface TechnicianAssignment {
@@ -67,6 +69,7 @@ export default function InventoryManager({ onToast }: InventoryManagerProps) {
   // Modal states
   const [showItemModal, setShowItemModal] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
+  const [showExcelUpload, setShowExcelUpload] = useState(false)
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
   const [assigningItem, setAssigningItem] = useState<InventoryItem | null>(null)
 
@@ -332,13 +335,23 @@ export default function InventoryManager({ onToast }: InventoryManagerProps) {
               <h3 className="text-lg font-semibold text-gray-900">Envanter Öğeleri</h3>
               <p className="text-gray-600">Envanter öğelerini yönetin</p>
             </div>
-            <Button 
-              onClick={handleAddItem}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Yeni Öğe Ekle
-            </Button>
+            <div className="flex space-x-3">
+              <Button
+                onClick={() => setShowExcelUpload(true)}
+                variant="outline"
+                className="border-green-600 text-green-600 hover:bg-green-50"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Excel'den Yükle
+              </Button>
+              <Button 
+                onClick={handleAddItem}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Yeni Öğe Ekle
+              </Button>
+            </div>
           </div>
 
           {/* Filters */}
@@ -615,6 +628,16 @@ export default function InventoryManager({ onToast }: InventoryManagerProps) {
         onClose={() => setShowAssignModal(false)}
         onSave={handleModalSave}
         item={assigningItem}
+        onToast={onToast}
+      />
+
+      <ExcelUploadModal
+        isOpen={showExcelUpload}
+        onClose={() => setShowExcelUpload(false)}
+        onSuccess={() => {
+          setShowExcelUpload(false)
+          loadInventoryItems() // Listeyi yenile
+        }}
         onToast={onToast}
       />
     </div>

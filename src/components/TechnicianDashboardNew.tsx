@@ -572,7 +572,11 @@ export default function TechnicianDashboard({ user, profile }: TechnicianDashboa
           />
         </div>
       )}
+      <div className="text-center text-sm text-gray-500">
+      version 1.0.4
     </div>
+    </div>
+  
   )
 }
 

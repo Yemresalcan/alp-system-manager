@@ -40,8 +40,15 @@ export async function POST(request: NextRequest) {
       technician_id,
       task_type, 
       service_number,
+      modem_serial_number,
+      modem_tracking_id, // Keep for compatibility but don't use
+      modem_assigned_at,
+      modem_usage_notes,
+      equipment_assignments, // New equipment system
       notes,
-      location
+      location,
+      status,
+      started_at
     } = body
 
     console.log('🔧 Tasks API: Yeni görev oluşturuluyor...', { task_type, service_number, user_id: sessionCheck.user?.id })
@@ -102,6 +109,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    console.log('🔧 Equipment assignments:', equipment_assignments)
+
     // Görevi oluştur
     const { data: taskData, error: taskError } = await supabaseAdmin
       .from('tasks')
@@ -112,7 +121,14 @@ export async function POST(request: NextRequest) {
         description: notes?.trim() || `${task_type} görevi`,
         created_by: technician_id, // Teknisyen kendisi oluşturuyor
         service_number: service_number.trim(),
-        status: 'pending',
+        // Backward compatibility fields
+        modem_serial_number: modem_serial_number?.trim() || null,
+        modem_assigned_at: modem_assigned_at || null,
+        modem_usage_notes: modem_usage_notes?.trim() || null,
+        // New equipment system
+        equipment_assignments: equipment_assignments || [],
+        status: status || 'pending',
+        started_at: started_at || null,
         notes: notes?.trim() || null,
         location: location?.trim() || null,
         created_at: new Date().toISOString(),
@@ -253,6 +269,7 @@ export async function PUT(request: NextRequest) {
       status,
       notes,
       location,
+      modem_serial_number,
       started_at,
       completed_at
     } = body
@@ -304,6 +321,7 @@ export async function PUT(request: NextRequest) {
     if (status) updateData.status = status
     if (notes !== undefined) updateData.notes = notes?.trim() || null
     if (location !== undefined) updateData.location = location?.trim() || null
+    if (modem_serial_number !== undefined) updateData.modem_serial_number = modem_serial_number?.trim() || null
     if (started_at) updateData.started_at = started_at
     if (completed_at) updateData.completed_at = completed_at
 

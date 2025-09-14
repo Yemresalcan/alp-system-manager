@@ -32,6 +32,13 @@ export interface Task {
   technician_id: string
   task_type: 'fiber_kurulum' | 'normal_kurulum' | 'fiber_donusum' | 'nakil' | 'diger'
   service_number: string
+  // Legacy modem fields (kept for backward compatibility)
+  modem_serial_number?: string
+  modem_tracking_id?: string
+  modem_assigned_at?: string
+  modem_usage_notes?: string
+  // New equipment assignments field
+  equipment_assignments?: EquipmentAssignment[]
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
   started_at?: string
   completed_at?: string
@@ -96,6 +103,85 @@ export interface TechnicianInventory {
   notes?: string
   created_at: string
   updated_at: string
+}
+
+// EKİPMAN TAKİP MODÜLÜ TYPES
+export type EquipmentType = 'modem' | 'tv' | 'rf_remote' | 'stb_hr' | 'stb_nt' | 'satellite_card' | 'stb'
+
+export const EQUIPMENT_TYPES: Record<EquipmentType, { label: string; icon: string; prefix?: string }> = {
+  modem: { label: 'Modem', icon: '📡' },
+  tv: { label: 'TV', icon: '📺' },
+  rf_remote: { label: 'RF Kumanda', icon: '📻' },
+  stb_hr: { label: 'STB (HR)', icon: '📱', prefix: 'HR' },
+  stb_nt: { label: 'STB (NT)', icon: '📱', prefix: 'NT' },
+  stb: { label: 'STB (HR/NT)', icon: '📱' }, // Generic STB - auto-detect HR/NT
+  satellite_card: { label: 'Uydu Kartı', icon: '🛰️' }
+}
+
+export interface EquipmentTracking {
+  id: string
+  equipment_type: EquipmentType
+  serial_number: string
+  document_number?: string
+  company?: string
+  stock_name?: string
+  stock_status?: string
+  warehouse_movement_date?: string
+  assigned_technician_id?: string
+  assigned_technician_name?: string
+  assigned_date?: string
+  assignment_task_type?: string
+  assignment_service_number?: string
+  assignment_location?: string
+  assignment_notes?: string
+  returned_date?: string
+  returned_by?: string
+  return_notes?: string
+  current_status: 'available' | 'assigned' | 'in_use' | 'returned' | 'lost' | 'damaged'
+  created_at: string
+  updated_at: string
+  created_by: string
+}
+
+export interface EquipmentTrackingLog {
+  id: string
+  equipment_tracking_id: string
+  action: string
+  old_value?: string
+  new_value?: string
+  performed_by: string
+  performed_at: string
+  notes?: string
+}
+
+export interface EquipmentAssignment {
+  type: EquipmentType
+  serial_number: string
+  tracking_id?: string
+  assigned_at: string
+  usage_notes?: string
+}
+
+// Helper function to detect equipment type from serial number
+export const detectEquipmentType = (serialNumber: string): EquipmentType => {
+  const upper = serialNumber.toUpperCase()
+  
+  if (upper.startsWith('HR')) return 'stb_hr'
+  if (upper.startsWith('NT')) return 'stb_nt'
+  if (upper.includes('RF') || upper.includes('REMOTE')) return 'rf_remote'
+  if (upper.includes('TV')) return 'tv'
+  if (upper.includes('SAT') || upper.includes('CARD') || upper.includes('UYDU')) return 'satellite_card'
+  
+  return 'modem' // default
+}
+
+// Backward compatibility - keep old interface names
+export interface ModemTracking extends Omit<EquipmentTracking, 'equipment_type' | 'serial_number'> {
+  modem_serial_number: string
+}
+
+export interface ModemTrackingLog extends Omit<EquipmentTrackingLog, 'equipment_tracking_id'> {
+  modem_tracking_id: string
 }
 
 export interface InventoryMaintenance {

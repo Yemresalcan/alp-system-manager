@@ -1,10 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { taskAPI } from '@/lib/api-client'
 import { Task } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
+import BarcodeScanner from '@/components/BarcodeScanner'
+import { useAssignEquipment } from '@/hooks/useEquipmentTracking'
+import { EquipmentAssignment, EquipmentType, detectEquipmentType, EQUIPMENT_TYPES } from '@/lib/supabase'
 import {
   ArrowLeft,
   ArrowRight,
@@ -18,7 +21,8 @@ import {
   MoreHorizontal,
   User,
   Hash,
-  X
+  X,
+  Scan
 } from 'lucide-react'
 
 interface TaskWizardProps {
@@ -32,9 +36,30 @@ type Step = 1 | 2 | 3
 interface TaskFormData {
   task_type: string
   service_number: string
+  modem_serial_number: string // Keep for backward compatibility
   location: string
   notes: string
   photos: File[]
+  // New dynamic equipment serials
+  equipment_serials: {
+    [key in EquipmentType]?: string
+  }
+}
+
+interface EquipmentTrackingInfo {
+  id: string
+  serial_number: string
+  equipment_type: string
+  equipment_label: string
+  equipment_icon: string
+  assigned_at: string
+}
+
+// Keep for backward compatibility
+interface ModemTrackingInfo {
+  id: string
+  serial_number: string
+  assigned_at: string
 }
 
 export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizardProps) {
@@ -43,48 +68,344 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
   const [formData, setFormData] = useState<TaskFormData>({
     task_type: '',
     service_number: '',
+    modem_serial_number: '',
     location: '',
     notes: '',
-    photos: []
+    photos: [],
+    equipment_serials: {}
   })
   const [createdTask, setCreatedTask] = useState<Task | null>(null)
+  // Multiple barcode scanners for different equipment types
+  const [activeBarcodeScanner, setActiveBarcodeScanner] = useState<{
+    isOpen: boolean
+    equipmentType: EquipmentType | null
+  }>({
+    isOpen: false,
+    equipmentType: null
+  })
+  // New equipment assignments array
+  const [equipmentAssignments, setEquipmentAssignments] = useState<EquipmentTrackingInfo[]>([])
+  // Keep for backward compatibility
+  const [modemTrackingInfo, setModemTrackingInfo] = useState<ModemTrackingInfo | null>(null)
+  const [assigningEquipment, setAssigningEquipment] = useState(false)
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null)
 
-  // Görev tipleri
+  // React Query mutation
+  const assignEquipmentMutation = useAssignEquipment()
+
+  // Ekipman atama fonksiyonu (React Query mutation ile)
+  const assignEquipmentToTechnician = async (serialNumber: string, source: 'barcode' | 'manual' = 'manual') => {
+    if (!serialNumber.trim() || !formData.task_type) {
+      console.log('⏩ Ekipman ataması atlandı - eksik bilgi')
+      return null
+    }
+
+    try {
+      setAssigningEquipment(true)
+      
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      console.log('👤 Auth kontrolü:', { user: user?.id, profile_id: user?.user_metadata?.profile_id, error: authError })
+      
+      if (authError) {
+        throw new Error(`Auth hatası: ${authError.message}`)
+      }
+      
+      if (!user) {
+        throw new Error('Kullanıcı oturum açmamış')
+      }
+      
+      // Profile ID'yi belirle (önce metadata'dan, yoksa user.id kullan)
+      const profileId = user.user_metadata?.profile_id || user.id
+      console.log('🆔 Kullanılacak profile_id:', profileId)
+      
+      if (!profileId) {
+        console.warn('⚠️ Profile ID bulunamadı, user metadata:', user.user_metadata)
+        throw new Error('Kullanıcı profil bilgisi eksik.')
+      }
+      
+      // React Query mutation kullan
+      return new Promise((resolve, reject) => {
+        assignEquipmentMutation.mutate({
+          serial_number: serialNumber,
+          technician_id: profileId,
+          assigned_by: user.id,
+          task_type: formData.task_type,
+          service_number: formData.service_number,
+          location: formData.location,
+          notes: `${source === 'barcode' ? 'Barkod okutma' : 'Manuel giriş'} ile kullanıma alındı`
+        }, {
+          onSuccess: (result) => {
+            console.log('✅ Ekipman atama başarılı (React Query):', result)
+            console.log('📋 API Response Details:', {
+              success: result.success,
+              message: result.message,
+              equipment_id: result.equipment?.id,
+              equipment_status: result.equipment?.current_status,
+              equipment_type: result.assignment_details?.equipment_type,
+              assigned_technician: result.equipment?.assigned_technician_name
+            })
+            
+            // Ekipman tracking bilgisini kaydet  
+            const equipmentId = result.equipment?.id || ''
+            const equipmentType = result.assignment_details?.equipment_type || 'modem'
+            const equipmentLabel = result.assignment_details?.equipment_label || 'Ekipman'
+            const equipmentIcon = result.assignment_details?.equipment_icon || '📡'
+            
+            console.log('🆔 Equipment ID çıkarıldı:', equipmentId, 'Type:', equipmentType)
+            
+            const equipmentInfo = {
+              id: equipmentId,
+              serial_number: serialNumber,
+              equipment_type: equipmentType,
+              equipment_label: equipmentLabel,
+              equipment_icon: equipmentIcon,
+              assigned_at: result.assignment_details?.assigned_date || new Date().toISOString()
+            }
+            
+            // Add to equipment assignments array
+            setEquipmentAssignments(prev => {
+              // Remove existing assignment with same serial number
+              const filtered = prev.filter(eq => eq.serial_number !== serialNumber)
+              return [...filtered, equipmentInfo]
+            })
+            
+            // Keep backward compatibility
+            if (equipmentType === 'modem') {
+              const modemInfo = {
+                id: equipmentId,
+                serial_number: serialNumber,
+                assigned_at: equipmentInfo.assigned_at
+              }
+              setModemTrackingInfo(modemInfo)
+            }
+            
+            const sourceText = source === 'barcode' ? 'barkod okutma' : 'manuel giriş'
+            onToast('success', `${equipmentIcon} ${equipmentLabel} Kullanımda`, `"${serialNumber}" ${sourceText} ile kullanıma alındı`)
+            
+            resolve(equipmentInfo)
+          },
+          onError: (error: any) => {
+            console.error('❌ Ekipman atama hatası (React Query):', error)
+            
+            // Detect equipment type for error fallback
+            const equipmentType = detectEquipmentType(serialNumber)
+            const equipmentInfo = EQUIPMENT_TYPES[equipmentType]
+            
+            onToast('error', `⚠️ ${equipmentInfo.label} Uyarısı`, error.message || 'Ekipman ataması yapılamadı')
+            
+            // API başarısız olsa da ekipman bilgisini manuel kaydet
+            const fallbackEquipmentInfo = {
+              id: '', // ID yok ama seri numarası var
+              serial_number: serialNumber,
+              equipment_type: equipmentType,
+              equipment_label: equipmentInfo.label,
+              equipment_icon: equipmentInfo.icon,
+              assigned_at: new Date().toISOString()
+            }
+            
+            setEquipmentAssignments(prev => {
+              const filtered = prev.filter(eq => eq.serial_number !== serialNumber)
+              return [...filtered, fallbackEquipmentInfo]
+            })
+            
+            // Keep backward compatibility for modem
+            if (equipmentType === 'modem') {
+              const modemInfo = {
+                id: '',
+                serial_number: serialNumber,
+                assigned_at: fallbackEquipmentInfo.assigned_at
+              }
+              setModemTrackingInfo(modemInfo)
+            }
+            
+            console.log('⚠️ Ekipman bilgisi manuel kaydedildi (API başarısız)', fallbackEquipmentInfo)
+            
+            resolve(fallbackEquipmentInfo)
+          }
+        })
+      })
+      
+    } catch (error) {
+      console.error('❌ Ekipman atama genel hatası:', error)
+      
+      const equipmentType = detectEquipmentType(serialNumber)
+      const equipmentInfo = EQUIPMENT_TYPES[equipmentType]
+      
+      onToast('error', `❌ ${equipmentInfo.label} Hatası`, `Ekipman ataması başarısız: ${error}`)
+      
+      // Fallback equipment info
+      const fallbackEquipmentInfo = {
+        id: '',
+        serial_number: serialNumber,
+        equipment_type: equipmentType,
+        equipment_label: equipmentInfo.label,
+        equipment_icon: equipmentInfo.icon,
+        assigned_at: new Date().toISOString()
+      }
+      
+      setEquipmentAssignments(prev => {
+        const filtered = prev.filter(eq => eq.serial_number !== serialNumber)
+        return [...filtered, fallbackEquipmentInfo]
+      })
+      
+      // Keep backward compatibility for modem
+      if (equipmentType === 'modem') {
+        const modemInfo = {
+          id: '',
+          serial_number: serialNumber,
+          assigned_at: fallbackEquipmentInfo.assigned_at
+        }
+        setModemTrackingInfo(modemInfo)
+      }
+      
+      return fallbackEquipmentInfo
+    } finally {
+      setAssigningEquipment(false)
+    }
+  }
+
+  // Seçili görev tipine göre gerekli ekipmanları döndür
+  const getRequiredEquipmentTypes = (): EquipmentType[] => {
+    if (!formData.task_type) return []
+    const taskType = taskTypes.find(t => t.value === formData.task_type)
+    return taskType?.requiredEquipment || []
+  }
+
+  // Belirli bir ekipman tipi için seri numarası değiştir
+  const handleEquipmentSerialChange = (equipmentType: EquipmentType, value: string) => {
+    const newEquipmentSerials = {
+      ...formData.equipment_serials,
+      [equipmentType]: value
+    }
+    
+    setFormData({ 
+      ...formData, 
+      equipment_serials: newEquipmentSerials,
+      // Backward compatibility - modem için eski field'i da güncelle
+      modem_serial_number: equipmentType === 'modem' ? value : formData.modem_serial_number
+    })
+    
+    // Önceki timeout'u iptal et
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current)
+    }
+    
+    // Eğer değer varsa ve görev tipi seçilmişse atama yap (son 4 hane yeterli)
+    if (value.trim().length >= 4 && formData.task_type && !assigningEquipment) {
+      debounceTimeout.current = setTimeout(async () => {
+        console.log(`⏰ Debounce tamamlandı, ${equipmentType} ataması yapılıyor...`)
+        
+        // STB için özel handling - otomatik HR/NT tespit
+        if (equipmentType === 'stb') {
+          const detectedType = detectEquipmentType(value.trim())
+          console.log(`🔍 STB tip tespit: ${value.trim()} → ${detectedType}`)
+          
+          if (detectedType === 'stb_hr' || detectedType === 'stb_nt') {
+            // Tespit edilen gerçek STB tipini kullan
+            await assignEquipmentToTechnician(value.trim(), 'manual')
+          } else {
+            // STB olarak tespit edilemedi, varsayılan olarak STB HR olarak işle
+            console.log('⚠️ STB tipi tespit edilemedi, STB olarak devam ediliyor')
+            await assignEquipmentToTechnician(value.trim(), 'manual')
+          }
+        } else {
+          // Normal ekipman ataması
+          await assignEquipmentToTechnician(value.trim(), 'manual')
+        }
+      }, 1000) // 1 saniye bekle (4 hane için daha hızlı)
+    }
+  }
+  
+  // Elle girilen ekipman seri numarasını işle (backward compatibility)
+  const handleModemSerialChange = (value: string) => {
+    handleEquipmentSerialChange('modem', value)
+  }
+
+  // Görev tipi değiştiğinde mevcut ekipman numaraları varsa atama yap
+  useEffect(() => {
+    if (formData.task_type && !assigningEquipment) {
+      // Her ekipman tipi için kontrol et
+      Object.entries(formData.equipment_serials).forEach(async ([equipmentType, serialNumber]) => {
+        if (serialNumber && serialNumber.trim().length >= 4) {
+          // STB için özel kontrol - hem stb_hr hem stb_nt'yi kontrol et
+          let alreadyAssigned = false
+          if (equipmentType === 'stb') {
+            alreadyAssigned = !!equipmentAssignments.find(
+              eq => eq.serial_number === serialNumber.trim() && (eq.equipment_type === 'stb_hr' || eq.equipment_type === 'stb_nt')
+            )
+          } else {
+            alreadyAssigned = !!equipmentAssignments.find(
+              eq => eq.serial_number === serialNumber.trim() && eq.equipment_type === equipmentType
+            )
+          }
+          
+          if (!alreadyAssigned) {
+            console.log(`📋 Görev tipi seçildi, mevcut ${equipmentType} numarası için atama yapılıyor...`, serialNumber.trim())
+            await assignEquipmentToTechnician(serialNumber.trim(), 'manual')
+          }
+        }
+      })
+      
+      // Backward compatibility - modem için de kontrol et
+      if (formData.modem_serial_number.trim().length >= 4) {
+        const alreadyAssigned = equipmentAssignments.find(eq => eq.serial_number === formData.modem_serial_number.trim())
+        if (!alreadyAssigned && !modemTrackingInfo && !formData.equipment_serials.modem) {
+          console.log('📋 Görev tipi seçildi, mevcut modem numarası için atama yapılıyor (backward compatibility)...')
+          assignEquipmentToTechnician(formData.modem_serial_number.trim(), 'manual')
+        }
+      }
+    }
+  }, [formData.task_type])
+
+  // Cleanup function for debounce
+  useEffect(() => {
+    return () => {
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current)
+      }
+    }
+  }, [])
+
+  // Basit 4 görev tipi
   const taskTypes = [
     {
-      value: 'fiber_kurulum',
-      label: 'Fiber Kurulum',
+      value: 'sadece_modem',
+      label: 'Sadece Modem',
       icon: <Cable className="h-8 w-8" />,
       color: 'bg-blue-500',
-      description: 'Fiber internet bağlantısı kurulumu'
+      description: 'Sadece modem kurulumu',
+      requiredEquipment: ['modem'] as EquipmentType[]
     },
     {
-      value: 'normal_kurulum',
-      label: 'Normal Kurulum',
-      icon: <Wifi className="h-8 w-8" />,
+      value: 'modem_stb',
+      label: 'Modem + STB',
+      icon: <div className="flex space-x-1">
+        <Cable className="h-4 w-4" />
+        <span className="text-lg">📱</span>
+      </div>,
       color: 'bg-green-500',
-      description: 'Standart internet bağlantısı kurulumu'
+      description: 'Modem ve STB kurulumu (HR/NT otomatik tespit)',
+      requiredEquipment: ['modem', 'stb'] as EquipmentType[] // STB tip otomatik tespit edilecek
     },
     {
-      value: 'fiber_donusum',
-      label: 'Fiber Dönüşüm',
-      icon: <Wrench className="h-8 w-8" />,
+      value: 'modem_tv',
+      label: 'Modem + TV Heryerde',
+      icon: <div className="flex space-x-1">
+        <Cable className="h-4 w-4" />
+        <span className="text-lg">📺</span>
+        <span className="text-sm">📻</span>
+      </div>,
       color: 'bg-purple-500',
-      description: 'Mevcut bağlantının fiber\'e dönüştürülmesi'
+      description: 'Modem, TV ve RF kumanda kurulumu',
+      requiredEquipment: ['modem', 'tv', 'rf_remote'] as EquipmentType[]
     },
     {
-      value: 'nakil',
-      label: 'Nakil',
-      icon: <Truck className="h-8 w-8" />,
+      value: 'donusum',
+      label: 'Dönüşüm',
+      icon: <Wrench className="h-8 w-8" />,
       color: 'bg-orange-500',
-      description: 'Bağlantının başka adrese taşınması'
-    },
-    {
-      value: 'diger',
-      label: 'Diğer',
-      icon: <MoreHorizontal className="h-8 w-8" />,
-      color: 'bg-gray-500',
-      description: 'Diğer işlemler'
+      description: 'Mevcut bağlantının dönüştürülmesi',
+      requiredEquipment: ['modem'] as EquipmentType[]
     }
   ]
 
@@ -100,6 +421,21 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
         onToast('error', 'Hata', 'Lütfen hizmet numarasını girin')
         return
       }
+
+      // Gerekli ekipman kontrolü
+      const requiredEquipment = getRequiredEquipmentTypes()
+      const missingEquipment = requiredEquipment.filter(equipmentType => {
+        const serialValue = formData.equipment_serials[equipmentType]
+        return !serialValue || serialValue.trim().length < 4
+      })
+
+      if (missingEquipment.length > 0) {
+        const missingNames = missingEquipment.map(type => EQUIPMENT_TYPES[type].label).join(', ')
+        onToast('error', 'Ekipman Eksik', `Lütfen şu ekipmanların seri numaralarını girin: ${missingNames}`)
+        return
+      }
+
+      console.log('✅ Tüm gerekli ekipman seri numaraları girildi:', formData.equipment_serials)
 
       // Görev oluştur
       await createTask()
@@ -130,15 +466,105 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
       })
 
       // Yeni API client kullan
-      const result = await taskAPI.createTask({
+      const taskPayload: any = {
         technician_id: user.id,
         task_type: formData.task_type,
         service_number: formData.service_number.trim(),
         location: formData.location.trim() || undefined,
-        notes: formData.notes.trim() || undefined
+        notes: formData.notes.trim() || undefined,
+        status: 'in_progress',
+        started_at: new Date().toISOString()
+      }
+      
+      // Equipment assignments ekle (dinamik form verilerinden)
+      console.log('🔍 Form equipment serials:', formData.equipment_serials)
+      console.log('🔍 Equipment assignments state:', equipmentAssignments)
+      console.log('🔍 Mevcut modemTrackingInfo (backward compatibility):', modemTrackingInfo)
+      
+      // Form verilerinden equipment assignments oluştur
+      const equipmentAssignmentData: EquipmentAssignment[] = []
+      
+      Object.entries(formData.equipment_serials).forEach(([equipmentType, serialNumber]) => {
+        if (serialNumber && serialNumber.trim()) {
+          // STB için özel handling - gerçek assignment tipini bul
+          let actualAssignmentInfo = null
+          let actualEquipmentType = equipmentType as EquipmentType
+          
+          if (equipmentType === 'stb') {
+            // STB için hem stb_hr hem stb_nt assignment'ını kontrol et
+            actualAssignmentInfo = equipmentAssignments.find(
+              eq => eq.serial_number === serialNumber.trim() && (eq.equipment_type === 'stb_hr' || eq.equipment_type === 'stb_nt')
+            )
+            // Eğer assignment varsa gerçek tipini kullan
+            if (actualAssignmentInfo) {
+              actualEquipmentType = actualAssignmentInfo.equipment_type as EquipmentType
+            } else {
+              // Assignment yoksa seri numarasından tespit et
+              const detectedType = detectEquipmentType(serialNumber.trim())
+              if (detectedType === 'stb_hr' || detectedType === 'stb_nt') {
+                actualEquipmentType = detectedType
+              } else {
+                actualEquipmentType = 'stb_hr' // varsayılan
+              }
+            }
+          } else {
+            // Normal ekipman için assignment bilgisini bul
+            actualAssignmentInfo = equipmentAssignments.find(
+              eq => eq.serial_number === serialNumber.trim() && eq.equipment_type === equipmentType
+            )
+          }
+          
+          const equipmentInfo = EQUIPMENT_TYPES[actualEquipmentType]
+          
+          equipmentAssignmentData.push({
+            type: actualEquipmentType,
+            serial_number: serialNumber.trim(),
+            tracking_id: actualAssignmentInfo?.id || undefined,
+            assigned_at: actualAssignmentInfo?.assigned_at || new Date().toISOString(),
+            usage_notes: `${equipmentInfo?.icon || '🔧'} ${equipmentInfo?.label || actualEquipmentType} - görevde kullanıldı`
+          })
+          
+          console.log(`🔧 Equipment assignment oluşturuldu: ${equipmentType} → ${actualEquipmentType} (${serialNumber.trim()})`)
+        }
       })
+      
+      if (equipmentAssignmentData.length > 0) {
+        taskPayload.equipment_assignments = equipmentAssignmentData
+        console.log('🔧 Equipment assignments göreve ekleniyor:', equipmentAssignmentData)
+      } else {
+        console.log('⚠️ Hiçbir ekipman assignment verisi bulunamadı')
+      }
+      
+      // Backward compatibility - modem bilgilerini ekle
+      const modemSerial = formData.equipment_serials.modem || formData.modem_serial_number
+      if (modemSerial && modemSerial.trim()) {
+        taskPayload.modem_serial_number = modemSerial.trim()
+        console.log('📋 Modem serial number task\'a ekleniyor (backward compatibility):', modemSerial.trim())
+      }
+      
+      if (modemTrackingInfo) {
+        taskPayload.modem_tracking_id = modemTrackingInfo.id
+        taskPayload.modem_assigned_at = modemTrackingInfo.assigned_at
+        taskPayload.modem_usage_notes = `Modem: ${modemTrackingInfo.serial_number}`
+        console.log('🔗 Modem tracking bilgisi göreve ekleniyor (backward compatibility):', {
+          id: modemTrackingInfo.id,
+          serial: modemTrackingInfo.serial_number,
+          assigned_at: modemTrackingInfo.assigned_at
+        })
+      } else if (equipmentAssignments.length === 0) {
+        console.log('⚠️ Hiçbir ekipman ataması yapılmadı')
+      }
+      
+      console.log('📤 Task payload API\'ye gönderiliyor:', taskPayload)
+      const result = await taskAPI.createTask(taskPayload)
 
-      console.log('Görev oluşturuldu:', result.data)
+      console.log('✅ Görev oluşturuldu:', result.data)
+      console.log('🔧 Created task equipment assignments:', result.data?.equipment_assignments)
+      console.log('📋 Created task modem info (backward compatibility):', {
+        modem_serial_number: result.data?.modem_serial_number,
+        modem_tracking_id: result.data?.modem_tracking_id,
+        modem_assigned_at: result.data?.modem_assigned_at
+      })
       setCreatedTask(result.data)
       onToast('success', 'Başarılı', 'Görev oluşturuldu')
 
@@ -441,6 +867,68 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
                         />
                       </div>
 
+                      {/* Dinamik Ekipman Alanları */}
+                      {getRequiredEquipmentTypes().map((equipmentType) => {
+                        const equipmentInfo = EQUIPMENT_TYPES[equipmentType]
+                        const isSTB = equipmentType === 'stb'
+                        
+                        const serialValue = formData.equipment_serials[equipmentType] || ''
+                        // STB için assignment kontrolü - hem stb_hr hem stb_nt'yi kontrol et
+                        const isAssigned = isSTB ? 
+                          equipmentAssignments.find(eq => eq.serial_number === serialValue && (eq.equipment_type === 'stb_hr' || eq.equipment_type === 'stb_nt')) :
+                          equipmentAssignments.find(eq => eq.serial_number === serialValue && eq.equipment_type === equipmentType)
+                        
+                        return (
+                          <div key={equipmentType}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                              {equipmentInfo.icon} {equipmentInfo.label} Seri Numarası
+                              {(equipmentType === 'modem' || isSTB) && ' *'}
+                        </label>
+                        <div className="flex space-x-2">
+                          <input
+                            type="text"
+                                value={serialValue}
+                                onChange={(e) => handleEquipmentSerialChange(equipmentType, e.target.value)}
+                            className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm sm:text-base"
+                                placeholder={`${equipmentInfo.label} seri numarası (son 4 hane yeterli) veya barkod okutun`}
+                                disabled={assigningEquipment}
+                          />
+                              {assigningEquipment && (
+                                <div className="flex items-center px-2">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-600 border-t-transparent"></div>
+                                </div>
+                              )}
+                          <Button
+                            type="button"
+                                onClick={() => setActiveBarcodeScanner({
+                                  isOpen: true,
+                                  equipmentType: equipmentType
+                                })}
+                            variant="outline"
+                            className="px-3 py-2 sm:py-3"
+                                title={`${equipmentInfo.label} Barkod Okut`}
+                          >
+                            <Scan className="h-4 w-4 sm:h-5 sm:w-5" />
+                          </Button>
+                        </div>
+                            
+                            {/* Atama durumu göstergesi kaldırıldı */}
+                            
+                        <p className="text-xs text-gray-500 mt-1">
+                              {isSTB ? 'STB üzerindeki barkodu okutun (HR/NT otomatik tespit edilir)' : `${equipmentInfo.label} üzerindeki barkodu okutarak otomatik doldurabilirsiniz`}
+                        </p>
+                      </div>
+                        )
+                      })}
+                      
+                      {/* Gerekli ekipman yoksa uyarı */}
+                      {getRequiredEquipmentTypes().length === 0 && formData.task_type && (
+                        <div className="text-center py-4 text-gray-500">
+                          <span className="text-2xl">📝</span>
+                          <p className="mt-2">Bu görev tipi için ekipman gerekmemektedir</p>
+                        </div>
+                      )}
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Konum/Adres
@@ -706,6 +1194,74 @@ export default function TaskWizard({ onComplete, onCancel, onToast }: TaskWizard
           </div>
         </div>
       </div>
+
+      {/* Dinamik Barkod Okuyucu */}
+      <BarcodeScanner
+        isOpen={activeBarcodeScanner.isOpen}
+        onClose={() => setActiveBarcodeScanner({ isOpen: false, equipmentType: null })}
+        onScan={async (data) => {
+          console.log('📥 TaskWizard - Barkod verisi alındı:', data)
+          console.log('🎯 Active equipment type:', activeBarcodeScanner.equipmentType)
+          
+          // Detect equipment type from barcode
+          const detectedType = detectEquipmentType(data)
+          const detectedInfo = EQUIPMENT_TYPES[detectedType]
+          
+          // Use the active equipment type if specified, otherwise use detected type
+          let targetEquipmentType = activeBarcodeScanner.equipmentType || detectedType
+          
+          // STB için özel handling - eğer STB scanner açılmışsa ama HR/NT tespit edildiyse
+          if (activeBarcodeScanner.equipmentType === 'stb') {
+            if (detectedType === 'stb_hr' || detectedType === 'stb_nt') {
+              console.log(`🔍 STB scanner - tespit edilen gerçek tip: ${detectedType}`)
+              // Form'da 'stb' olarak kaydet ama assignment'ı gerçek tipte yap
+              targetEquipmentType = 'stb'
+            } else {
+              // STB scanner açık ama STB tespit edilemedi
+              console.log('⚠️ STB scanner açık ama STB tespit edilemedi, STB olarak devam')
+              targetEquipmentType = 'stb'
+            }
+          }
+          
+          const targetEquipmentInfo = EQUIPMENT_TYPES[targetEquipmentType]
+          
+          console.log('🔧 Target equipment type:', targetEquipmentType, targetEquipmentInfo)
+          console.log('🔍 Detected equipment type:', detectedType, detectedInfo)
+          
+          // Update form data for the specific equipment type
+          const newEquipmentSerials = {
+            ...formData.equipment_serials,
+            [targetEquipmentType]: data
+          }
+          
+          setFormData({ 
+            ...formData, 
+            equipment_serials: newEquipmentSerials,
+            // Backward compatibility for modem
+            modem_serial_number: targetEquipmentType === 'modem' ? data : formData.modem_serial_number
+          })
+          
+          // Assign equipment (will auto-detect actual STB type in the API)
+          await assignEquipmentToTechnician(data, 'barcode')
+          
+          // Success toast - show detected type if STB
+          const displayInfo = (activeBarcodeScanner.equipmentType === 'stb' && (detectedType === 'stb_hr' || detectedType === 'stb_nt')) 
+            ? EQUIPMENT_TYPES[detectedType] 
+            : targetEquipmentInfo
+          onToast('success', 'Başarılı', `${displayInfo.icon} ${displayInfo.label} seri numarası: ${data}`)
+          
+          // Close scanner
+          setActiveBarcodeScanner({ isOpen: false, equipmentType: null })
+        }}
+        title={activeBarcodeScanner.equipmentType ? 
+          `${EQUIPMENT_TYPES[activeBarcodeScanner.equipmentType].icon} ${EQUIPMENT_TYPES[activeBarcodeScanner.equipmentType].label} Okut` : 
+          'Ekipman Seri Numarası Okut'
+        }
+        placeholder={activeBarcodeScanner.equipmentType ? 
+          `${EQUIPMENT_TYPES[activeBarcodeScanner.equipmentType].label} üzerindeki barkodu okutun` :
+          'Ekipman üzerindeki barkodu okutun'
+        }
+      />
     </div>
   )
 }

@@ -316,6 +316,12 @@ export default function LoginForm() {
                     &copy; {new Date().getFullYear()} Alp Sistem. Tüm hakları saklıdır.
                   </p>
                 </div>
+                {/*Alp sistem versiyon*/}
+                <div>
+                  <p className="text-sm text-center text-gray-500">
+                    Versiyon: 2.1.0 (Beta)
+                  </p>
+                </div>
 
               </form>
             </div>

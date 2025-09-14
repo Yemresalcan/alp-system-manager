@@ -102,6 +102,7 @@ export const taskAPI = {
     technician_id: string
     task_type: string
     service_number: string
+    modem_serial_number?: string
     notes?: string
     location?: string
   }) {
@@ -113,6 +114,7 @@ export const taskAPI = {
     status?: string
     notes?: string
     location?: string
+    modem_serial_number?: string
     started_at?: string
     completed_at?: string
   }) {
