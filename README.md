@@ -8,7 +8,11 @@
 
 <p align="center">
 	<img src="https://github.com/user-attachments/assets/1e7a63ae-a495-465a-a74e-3b8037acde87" alt="Technician dashboard" width="85%" />
+<img width="1889" height="924" alt="image" src="https://github.com/user-attachments/assets/046ca6ec-9576-46af-bb68-41808642bc4d" />
 </p>
+
+
+
 
 ## 🗂️ İçindekiler | Table of Contents
 
